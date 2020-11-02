@@ -254,6 +254,28 @@ function minus(rvl, rvr) {
  */
 const _minus = (rvr) => (rvl) => minus(rvl, rvr);
 
+/**
+ * Rename a relvar's attributes, in order.
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ * @param {Array<[string,string]>} rnt -- Rename Tuples 
+ * @returns {Relvar<T>}
+ */
+function rename(rv, ...rnt)
+{
+    const map = Object.fromEntries(rnt);
+    const convert = (conv) => Object.entries(conv).map(([k,v]) => [map[k] ?? k, v]).tap(Object.fromEntries);
+    return relvar({attrs: convert(rv.attrs), tuples: rv.tuples.map(convert)});
+}
+
+/**
+ * Rename a relvar's attributes, in order.
+ * @template T
+ * @param {Array<[string,string]>} rnt -- Rename Tuples 
+ * @returns {(rv: RelvarBasic<T>) => Relvar<T>}
+ */
+const _ren = (...rnt) => (rv) => rename(rv, ...rnt);
+
 
 // Effectively validates, adds prototypes
 /**
@@ -274,4 +296,6 @@ function relvar(raw) {
 
 // console.log(relvar(S).tap(rvts));
 
-module.exports = {relvar, union, _sel, _un, selection, rvts, logrv, S, P, SP, _j, join, inv_selection, _but, where, _where, minus, _minus};
+module.exports = {relvar, union, _sel, _un, selection
+    , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
+    , where, _where, minus, _minus, rename, _ren};
