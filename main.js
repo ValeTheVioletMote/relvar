@@ -512,6 +512,24 @@ function assign_rv(db, name, rv) {
     };
 }
 
+function extend(rv, name, expr){
+
+}
+function compose(){
+
+}
+
+function update(){
+
+}
+
+function sum() {
+    
+}
+
+function image_relation() {
+
+}
 
 // console.log(relvar(S).tap(rvts));
 
