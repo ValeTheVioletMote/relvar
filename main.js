@@ -13,6 +13,10 @@ const hash = require("object-hash");
  * @template T
  * @typedef {import("./rv_types").Relvar<T>} Relvar<T>
  */
+/**
+ * @template T
+ * @typedef {import("./rv_types").Tuple<T>} Tuple<T>
+ */
 
 var Attributes = {};
 var Custom_Attributes = {};
@@ -292,6 +296,41 @@ function relvar(raw) {
                     .map(({t}) => t),
         toString: function rvts() { return display_relvar(this)}
     }
+}
+
+
+// // Not entirely sure what to do here. Don't want to use null, but are default values the answer, or is it an empty tuple..?
+// // Should the 'first' value be chosen if there's more. Isn't that inconsistent?
+// // This may need to be handled in the future custom logic for comparisons, etc.
+// /**
+//  * In the event of a relation containing a single tuple with a single attribute, get the 'value'.
+//  * @template T,U
+//  * @param {RelvarBasic<{T}>} rv
+//  * @returns {RelvarBasic<T> | U}
+//  */
+// function rvalue(rv) {
+//     if(rv.tuples.length == 1) {
+//         const keys = Object.keys(rv.tuples[0]);
+//         if(keys.length == 1) {
+//             return rv.tuples[0][keys[0]];
+//         } 
+//     }
+//     return rv;
+// }
+
+// Oops, we actually do TUPLE from and attr FROM *instead* of the above ^
+
+/**
+ * @template T,U
+ * @param {RelvarBasic<T>} rv
+ * @returns{Tuple<U>}
+ */
+function tuple_from(rv){
+    return rv.tuples[0];
+}
+
+function attr_from(tup, attr) {
+    return tup[attr];
 }
 
 // console.log(relvar(S).tap(rvts));
