@@ -96,6 +96,15 @@ where(I, i=>i.Damage > 30)
 .tap(cii => matching(C, cii))
 .tap(_sel("Cname"))
 .tap(logrv);
+
+console.log("Characters and the items they *don't* have: ")
+console.log("((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS Missing Item}")
+join(selection(C, "C#"), selection(I, "I#"))
+.tap(_minus( selection(CI, "C#", "I#") ))
+.tap(_j( selection(C, "C#", "Cname"),  selection(I, "I#", "Iname") ))
+.tap(_sel("Cname", "Iname"))
+.tap(_ren(["Cname", "Character"], ["Iname", "Missing Item"]))
+.tap(logrv);
 ```
 
 Output:
@@ -208,4 +217,23 @@ Just their names:
 ├──────────────────────┤
 │ Sir Nic of the Weils │
 └──────────────────────┘
+Characters and the items they *don't* have:
+((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS Missing Item}
+┌──────────────────────┬──────────────────────────────┐
+│ Character::string    │ Missing Item::string         │
+├──────────────────────┼──────────────────────────────┤
+│ Reese of Wellington  │ Glazed Donut                 │
+├──────────────────────┼──────────────────────────────┤
+│ Reese of Wellington  │ Ancient Spoon                │
+├──────────────────────┼──────────────────────────────┤
+│ Reese of Wellington  │ Holy Hand Grenade of Antioch │
+├──────────────────────┼──────────────────────────────┤
+│ Reese of Wellington  │ Common Shortsword            │
+├──────────────────────┼──────────────────────────────┤
+│ Sir Nic of the Weils │ Venom-Soaked Blade           │
+├──────────────────────┼──────────────────────────────┤
+│ Sir Nic of the Weils │ Holy Hand Grenade of Antioch │
+├──────────────────────┼──────────────────────────────┤
+│ Sir Nic of the Weils │ Common Shortsword            │
+└──────────────────────┴──────────────────────────────┘
 ```

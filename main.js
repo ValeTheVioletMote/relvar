@@ -391,7 +391,7 @@ const _ren = (...rnt) => (rv) => rename(rv, ...rnt);
  * @param {RelvarBasic<T>} raw -- relvar minus the secret information
  * @returns {Relvar<T>}
  */
-function relvar(raw) {
+function relvar(raw) { // Perhaps this is the one-stop shop to check for constraints?
     return  {
         attrs: raw.attrs,
         tuples: raw.tuples
