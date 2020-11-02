@@ -205,6 +205,54 @@ const _j = (rvb) => (rva) => join(rva, rvb);
 
 
 /**
+ * Return tuples of L that match tuples in P, based on common attributes.
+ * @template T
+ * @param {RelvarBasic<T>} rvl 
+ * @param {RelvarBasic<T>} rvr
+ * @returns {Relvar<T>} 
+ */
+function matching(rvl, rvr) {
+    const rk = Object.keys(rvr.attrs), shared = Object.keys(rvl.attrs).filter(a => rk.includes(a));
+    const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) != -1);
+    return relvar({attrs: rvl.attrs, tuples});
+}
+
+/**
+ * Return tuples of L that do not match tuples in P, based on common attributes.
+ * @template T
+ * @param {RelvarBasic<T>} rvl 
+ * @param {RelvarBasic<T>} rvr
+ * @returns {RelvarBasic<T>} 
+ */
+function not_matching(rvl, rvr) {
+    const rk = Object.keys(rvr.attrs), shared = Object.keys(rvl.attrs).filter(a => rk.includes(a));
+
+    if(shared.length == 0) { // Can't use shared.every (efficiently), will always be true on a empty
+        return relvar(rvl)
+    }else{
+        const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) == -1);
+        return relvar({attrs: rvl.attrs, tuples})
+    }
+}
+
+/**
+ * Return tuples of L that match tuples in P, based on common attributes.
+ * @template T
+ * @param {RelvarBasic<T>} rvr 
+ * @returns {(rvl: RelvarBasic<T>) => RelvarBasic<T>} rvl
+ */
+const _mat = (rvr) => (rvl) => matching(rvl, rvr);
+/**
+ * Return tuples of L that do not match tuples in P, based on common attributes.
+ * @template T
+ * @param {RelvarBasic<T>} rvr 
+ * @returns {(rvl: RelvarBasic<T>) => RelvarBasic<T>} rvl
+ */
+const _nmat = (rvr) => (rvl) => not_matching(rvl, rvr);
+
+
+
+/**
  * @param {RelvarBasic<*>} rv 
  * @returns {string}
  */
@@ -337,4 +385,13 @@ function attr_from(tup, attr) {
 
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
-    , where, _where, minus, _minus, rename, _ren};
+    , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat};
+
+/*
+
+var {relvar, union, _sel, _un, selection,
+    rvts, logrv, S, P, SP, _j, join, inv_selection, _but,
+    where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat} = require("./main.js");
+
+
+*/
