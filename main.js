@@ -117,17 +117,16 @@ const _un = (rvb) => (rva) => union(rva, rvb);
  * @param {Array<T>} attr_list -- List of attributes to select
  * @returns {RelvarBasic<U>}
  */
-function selection(rv, attr_list) {
+function selection(rv, ...attr_list) {
 
     const sel_attrs = (ob) =>
         Object.entries(ob).filter(([k,_v]) => attr_list.includes(k)).tap(Object.fromEntries);
 
 
-    return {
-        ...rv
-        , attrs: sel_attrs(rv.attrs)
+    return relvar({
+        attrs: sel_attrs(rv.attrs)
         , tuples: rv.tuples.map(sel_attrs)
-    }
+    });
 }
 
 /**
@@ -137,8 +136,8 @@ function selection(rv, attr_list) {
  * @param {Array<T>} but_list -- List of attributes to exclude
  * @returns {RelvarBasic<U>}
  */
-function inv_selection(rv, but_list) {
-    return selection(rv, Object.keys(rv.attrs).filter(a=>but_list.includes(a) == false));
+function inv_selection(rv, ...but_list) {
+    return selection(rv, ...Object.keys(rv.attrs).filter(a=>but_list.includes(a) == false));
 }
 
 /**
@@ -146,14 +145,14 @@ function inv_selection(rv, but_list) {
  * @param {Array<T>} attr_list
  * @returns {(rv: RelVar<T>) => Relvar<U>}
  */
-const _sel = (attr_list) => (rv) => selection(rv, attr_list);
+const _sel = (...attr_list) => (rv) => selection(rv, ...attr_list);
 
 /**
  * @template T,U
  * @param {Array<T>} attr_list
  * @returns {(rv: RelVar<T>) => Relvar<U>}
  */
-const _but = (attr_list) => (rv) => inv_selection(rv, attr_list);
+const _but = (...attr_list) => (rv) => inv_selection(rv, ...attr_list);
 
 // console.log("Test of selection: ")
 // console.log(S)
