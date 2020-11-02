@@ -99,6 +99,8 @@ function union(rva, rvb) {
 
     // TODO: return Just or Ei
 
+    // TODO: add check that the two are compatible? We otherwise introduce NULLs.
+
     return relvar({attrs: rva.attrs, tuples: rva.tuples.concat(rvb.tuples)})
 }
 /**
@@ -231,6 +233,27 @@ function where(rv, filter) {
  */
 const _where = (filter) => (relvar) => where(relvar, filter);
 
+/**
+ * @template T
+ * @param {RelvarBasic<T>} rvl 
+ * @param {RelvarBasic<T>} rvr
+ * @returns {RelvarBasic<T>} 
+ */
+function minus(rvl, rvr) {
+    const hashes = rvr.tuples.map(t => hash.MD5(t));
+    return relvar(
+        {attrs: rvl.attrs
+        , tuples: rvl.tuples.filter(t => hashes.includes(hash.MD5(t)) == false)
+    });
+}
+
+/**
+ * @template T
+ * @param {RelvarBasic<T>} rvr 
+ * @returns {(rvl: RelvarBasic<T>) => RelvarBasic<T>}
+ */
+const _minus = (rvr) => (rvl) => minus(rvl, rvr);
+
 
 // Effectively validates, adds prototypes
 /**
@@ -251,4 +274,4 @@ function relvar(raw) {
 
 // console.log(relvar(S).tap(rvts));
 
-module.exports = {relvar, union, _sel, _un, selection, rvts, logrv, S, P, SP, _j, join, inv_selection, _but, where, _where};
+module.exports = {relvar, union, _sel, _un, selection, rvts, logrv, S, P, SP, _j, join, inv_selection, _but, where, _where, minus, _minus};
