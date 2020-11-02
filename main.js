@@ -178,6 +178,15 @@ const _but = (...attr_list) => (rv) => inv_selection(rv, ...attr_list);
  * @param {RelvarBasic<T>} rvb -- Relvar B (OR tuples)?
  */
 function join(rva, rvb) {
+
+    /**
+     * TODO:
+     *  > Not communative due to no caretesian product.
+     *  > Perhaps open join up to more than two operands to allow for 'optimization': i.e.,
+     *  S JOIN P JOIN SP is much more efficient if operated S JOIN SP JOIN P, avoiding the cartesian product.
+     */
+
+
     const attrs = Object.entries(rva.attrs).concat(Object.entries(rvb.attrs))
                     .reduce( (acc, [a_name,a_type]) => {
                         if(acc[a_name]) {
