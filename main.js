@@ -6,6 +6,7 @@ const YMLW = require("write-yaml");
 
 // simple type checker: function for every type that simply returns true or false!
 // do haskell style implementations of certain functions? comparison, eq, etc.
+// should the user be able to write their own JS to define the above? Seems plausible.
 
 /**
  * @template T
@@ -511,6 +512,24 @@ function assign_rv(db, name, rv) {
     };
 }
 
+function extend(rv, name, expr){
+
+}
+function compose(){
+
+}
+
+function update(){
+
+}
+
+function sum() {
+    
+}
+
+function image_relation() {
+
+}
 
 // console.log(relvar(S).tap(rvts));
 
