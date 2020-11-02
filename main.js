@@ -114,7 +114,7 @@ const _un = (rvb) => (rva) => union(rva, rvb);
  * No duplicate rows allowed, of course.
  * @template T,U
  * @param {RelvarBasic<T>} rv -- Relvar
- * @param {Array<T>} attr_list -- Relvar B (OR tuples)?
+ * @param {Array<T>} attr_list -- List of attributes to select
  * @returns {RelvarBasic<U>}
  */
 function selection(rv, attr_list) {
@@ -131,11 +131,29 @@ function selection(rv, attr_list) {
 }
 
 /**
+ * "ALL BUT" Selection.
+ * @template T,U
+ * @param {RelvarBasic<T>} rv -- Relvar
+ * @param {Array<T>} but_list -- List of attributes to exclude
+ * @returns {RelvarBasic<U>}
+ */
+function inv_selection(rv, but_list) {
+    return selection(rv, Object.keys(rv.attrs).filter(a=>but_list.includes(a) == false));
+}
+
+/**
  * @template T,U
  * @param {Array<T>} attr_list
  * @returns {(rv: RelVar<T>) => Relvar<U>}
  */
 const _sel = (attr_list) => (rv) => selection(rv, attr_list);
+
+/**
+ * @template T,U
+ * @param {Array<T>} attr_list
+ * @returns {(rv: RelVar<T>) => Relvar<U>}
+ */
+const _but = (attr_list) => (rv) => inv_selection(rv, attr_list);
 
 // console.log("Test of selection: ")
 // console.log(S)
@@ -193,6 +211,26 @@ function display_relvar(rv) {
 }
 
 const rvts = display_relvar;
+const logrv = (rv) => console.log(display_relvar(rv));
+
+/**
+ * Perform basic where clause on relvar
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ * @param {(a:T) => boolean} filter 
+ * @returns {Relvar<T>}
+ */
+function where(rv, filter) {
+    return relvar({attrs: rv.attrs, tuples: rv.tuples.filter(filter)});
+}
+
+/**
+ * Perform basic where clause on relvar
+ * @template T
+ * @param {(a:T) => boolean} filter 
+ * @returns {(rv: RelvarBasic<T>) => Relvar<T>}
+ */
+const _where = (filter) => (relvar) => where(relvar, filter);
 
 
 // Effectively validates, adds prototypes
@@ -214,4 +252,4 @@ function relvar(raw) {
 
 // console.log(relvar(S).tap(rvts));
 
-module.exports = {relvar, union, _sel, _un, selection, rvts, S, P, SP, _j, join};
+module.exports = {relvar, union, _sel, _un, selection, rvts, logrv, S, P, SP, _j, join, inv_selection, _but, where, _where};
