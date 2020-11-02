@@ -1,6 +1,8 @@
 require("tap-chain").mixin(Object.prototype);
 const CLT = require("cli-table3");
 const hash = require("object-hash");
+const YMLR = require("read-yaml");
+const YMLW = require("write-yaml");
 
 // simple type checker: function for every type that simply returns true or false!
 // do haskell style implementations of certain functions? comparison, eq, etc.
@@ -16,6 +18,10 @@ const hash = require("object-hash");
 /**
  * @template T
  * @typedef {import("./rv_types").Tuple<T>} Tuple<T>
+ */
+
+/**
+ * @typedef {import("./rv_types").DB} DB
  */
 
 var Attributes = {};
@@ -368,6 +374,8 @@ function relvar(raw) {
 
 // Oops, we actually do TUPLE from and attr FROM *instead* of the above ^
 
+// But these seem way too easy/dumb:
+
 /**
  * @template T,U
  * @param {RelvarBasic<T>} rv
@@ -381,17 +389,84 @@ function attr_from(tup, attr) {
     return tup[attr];
 }
 
+/**
+ * 
+ * @param {string} location 
+ * @param {string} name (Optional)
+ * @returns {DB} 
+ */
+function db(location, name="") {
+
+    // Check if DB exists at location. If not, build it (and save it?).
+
+    try {
+        var d = YMLR.sync(location);
+        return d;
+    }catch(err){
+        return {
+            meta: {
+                location,
+                name,
+                last_hash: ""
+            },
+            data: {
+                relvars: {}
+            },
+        }
+    }
+}
+
+/**
+ * @param {DB} db 
+ * @returns {{c: "NOT_SAVED", db: DB} | {c: "SAVED", db: DB} | {c: "ERROR", error: Error, db: DB}}
+ */
+function save_db(db) {
+    const new_hash = hash.MD5(db.data);
+    try{
+        if(new_hash != db.meta.last_hash) {
+            var ndb = {...db};
+            ndb.meta.last_hash = new_hash;
+            YMLW.sync(ndb.meta.location, ndb)
+            return {c: "SAVED", db:ndb};
+        }
+    }catch(err){
+        return {c: "ERROR", err, db};
+    }
+    return {c: "NOT_SAVED", db};
+}
+
+/**
+ * Assign a relvar to a DB.
+ * @param {DB} db 
+ * @param {string} name 
+ * @param {RelvarBasic<*>} rv 
+ * @returns {DB}
+ */
+function assign_rv(db, name, rv) {
+    const new_relvars = {...db.data.relvars};
+    new_relvars[name] = {attrs: rv.attrs, tuples: rv.tuples};
+    return {
+        meta: db.meta,
+        data: {
+            relvars: new_relvars
+        }
+    };
+}
+
+
 // console.log(relvar(S).tap(rvts));
 
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
-    , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat};
+    , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
+    , db, save_db, assign_rv};
 
 /*
 
-var {relvar, union, _sel, _un, selection,
-    rvts, logrv, S, P, SP, _j, join, inv_selection, _but,
-    where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat} = require("./main.js");
+var {relvar, union, _sel, _un, selection
+    , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
+    , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
+    , db, save_db, assign_rv} = require("./main.js");
 
 
 */

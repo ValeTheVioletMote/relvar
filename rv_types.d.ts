@@ -11,3 +11,14 @@ export type Tuple<T> = Record<T,any>;
 export type Relvar<T> = RelvarBasic<T> & {
     toString: () => string
 };
+
+export type DB = {
+    meta: {
+        location: string,
+        name: string,
+        last_hash: string
+    },
+    data: {
+        relvars: Record<string, RelvarBasic<*>>
+    },
+}

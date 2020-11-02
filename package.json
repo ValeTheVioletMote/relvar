@@ -1,12 +1,14 @@
 {
-  "name": "relvar",
-  "version": "0.0.1",
+  "name": "relvar.js",
+  "version": "0.0.2",
   "description": "An amateur database inspired by CJ Date and Project M36.",
   "main": "main.js",
   "dependencies": {
     "cli-table3": "^0.6.0",
     "object-hash": "^2.0.3",
-    "tap-chain": "^0.2.3"
+    "read-yaml": "^1.1.0",
+    "tap-chain": "^0.2.3",
+    "write-yaml": "^1.0.0"
   },
   "devDependencies": {},
   "scripts": {
