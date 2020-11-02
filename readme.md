@@ -58,7 +58,6 @@ var CI = relvar({
     ]
 });
 
-// Saves the DB 
 var {db: GameDB} = GameDB.tap(_arv("C", C)).tap(_arv("I", I)).tap(_arv("CI", CI)).tap(save_db);
 
 console.log("C:")
@@ -76,6 +75,10 @@ join(C, CI).tap(_j(I)).tap(logrv);
 console.log("(C join CI join I){ALL BUT C#, HP, I#}");
 join(C, CI).tap(_j(I)).tap(_but("C#", "HP", "I#")).tap(logrv);
 
+console.log("Variant to test/display commutative properties of join:")
+console.log("(C join I join CI){ALL BUT C#, HP, I#}");
+join(C, I, CI).tap(_but("C#", "HP", "I#")).tap(logrv);
+
 console.log("Give me all items that are owned by no character:")
 console.log("I NOT MATCHING CI");
 not_matching(I, CI).tap(logrv);
@@ -87,8 +90,6 @@ matching(C, join(CI, where(I, i=>i.Damage > 30))).tap(logrv)
 console.log("Just their names:")
 console.log("(C MATCHING (CI JOIN (I WHERE {Damage > 30}))){Cname}")
 matching(C, join(CI, where(I, i=>i.Damage > 30))).tap(_sel("Cname")).tap(logrv)
-
-// The above query can also be written as below:
 
 where(I, i=>i.Damage > 30)
 .tap(_j(CI))
@@ -164,6 +165,21 @@ C join CI join I
 ├──────────────────────┼──────────────┼────────────────────┼────────────────────┼────────────────┤
 │ Sir Nic of the Weils │ 10           │ Bronze Poniard     │ 10                 │ 10             │
 └──────────────────────┴──────────────┴────────────────────┴────────────────────┴────────────────┘
+Variant to test/display commutative properties of join:
+(C join I join CI){ALL BUT C#, HP, I#}
+┌──────────────────────┬────────────────────┬────────────────────┬────────────────┬──────────────┐
+│ Cname::string        │ Iname::string      │ Durability::number │ Damage::number │ Slot::number │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Reese of Wellington  │ Bronze Poniard     │ 10                 │ 10             │ 3            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Reese of Wellington  │ Venom-Soaked Blade │ 5                  │ 25             │ 4            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Bronze Poniard     │ 10                 │ 10             │ 10           │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Glazed Donut       │ 1                  │ 1              │ 4            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Ancient Spoon      │ 1                  │ 80             │ 3            │
+└──────────────────────┴────────────────────┴────────────────────┴────────────────┴──────────────┘
 Give me all items that are owned by no character:
 I NOT MATCHING CI
 ┌────────────┬──────────────────────────────┬────────────────────┬────────────────┐

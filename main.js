@@ -174,40 +174,18 @@ const _but = (...attr_list) => (rv) => inv_selection(rv, ...attr_list);
 
 /**
  * Combines two relvars so long as their attributes match.
+ * @template T,U,V
  * @param {RelvarBasic<T>} rva -- Relvar A 
- * @param {RelvarBasic<T>} rvb -- Relvar B (OR tuples)?
+ * @param {RelvarBasic<U>} rvb -- Relvar B (OR tuples)?
+ * @param {Record<V,string>} attrs
+ * @param {Array<V>} shared
+ * @returns {Relvar<V>}
  */
-function join(rva, rvb) {
-
-    /**
-     * TODO:
-     *  > Not communative due to no caretesian product.
-     *  > Perhaps open join up to more than two operands to allow for 'optimization': i.e.,
-     *  S JOIN P JOIN SP is much more efficient if operated S JOIN SP JOIN P, avoiding the cartesian product.
-     */
-
-
-    const attrs = Object.entries(rva.attrs).concat(Object.entries(rvb.attrs))
-                    .reduce( (acc, [a_name,a_type]) => {
-                        if(acc[a_name]) {
-                            if(acc[a_name] != a_type) {
-                                // TODO convert to FP style (monadic)
-                                throw `Invalid join. Mismatched types: ${a_name}::${acc[a_name]} & ${a_name}::${a_type}`
-                            }
-                        }else{
-                            acc[a_name] = a_type
-                        }
-                        return acc;
-                    }, /** @type{RelvarBasic['attrs']}*/({}));
-    // const tuples = rva.tuples.map()
-
-    // perhaps the above is unnecessary if we do the checks here lol, may be more FP-friendly as well
-    const ak = Object.keys(rva.attrs), bk = Object.keys(rvb.attrs);
-    const shared = ak.filter(a => bk.includes(a));
+function join_two(rva, rvb, attrs, shared) {
 
     // could potentially make more performant by making sure the larger relvar is on the left?
     const tuples = rva.tuples.map(at => 
-        rvb.tuples.filter(bt => shared.every(s => at[s] == bt[s]))
+        rvb.tuples.filter(bt => shared.every(s => at[s] == bt[s])) // TODO: custom equality when we get more complex types
         .map(bt => {
             return {...at, ...bt};
         })
@@ -216,7 +194,70 @@ function join(rva, rvb) {
     return relvar({attrs, tuples})
 
 }
-const _j = (rvb) => (rva) => join(rva, rvb);
+
+/**
+ * Performs a Cross Join. Used in tandem with join_two to fulfill the various join cases.
+ * @template T,U,V
+ * @param {RelvarBasic<T>} rva 
+ * @param {RelvarBasic<U>} rvb 
+ * @param {Record<V,string>} attrs
+ * @returns {Relvar<V>}
+ */
+function join_cross(rva, rvb, attrs) {
+    // TODO: potentially save on computation by forcing rvb to be the rel with the smallest cardinality.
+    return relvar({attrs, tuples: rva.tuples.map(a => rvb.tuples.map( b=> {return {...a, ...b}})).flat(1)})
+}
+
+/**
+ * 
+ * @param  {...RelvarBasic<any>} rvs
+ * @returns {Relvar<any>} 
+ */
+function join(rva, rvb, ...rvs) {
+    
+    /**
+     * TODO:
+     *  > Allow for 'optimization': i.e.,
+     *  S JOIN P JOIN SP is much more efficient if operated S JOIN SP JOIN P, avoiding the cartesian product.
+     */
+
+    if(rvb != undefined) {
+        const attrs = Object.entries(rva.attrs).concat(Object.entries(rvb.attrs))
+                        .reduce( (acc, [a_name,a_type]) => {
+                            if(acc[a_name]) {
+                                if(acc[a_name] != a_type) {
+                                    // TODO convert to FP style (monadic)
+                                    throw `Invalid join. Mismatched types: ${a_name}::${acc[a_name]} & ${a_name}::${a_type}`
+                                }
+                            }else{
+                                acc[a_name] = a_type
+                            }
+                            return acc;
+                        }, /** @type{RelvarBasic['attrs']}*/({}));
+
+        // Honestly not sure what I meant by the below comment, but keeping it here in case I do remember.
+        // // perhaps the above is unnecessary if we do the checks here lol, may be more FP-friendly as well
+        const ak = Object.keys(rva.attrs), bk = Object.keys(rvb.attrs);
+        const shared = ak.filter(a => bk.includes(a));
+
+        const joined = shared.length > 0 ? join_two(rva, rvb, attrs, shared)
+                                         : join_cross(rva, rvb, attrs);
+        
+        return join(joined, ...rvs);
+
+    }else if(rvs.length == 0) {
+        return relvar(rva);
+    }else{
+        console.error("rva", rva);
+        console.error("rvb", rvb);
+        console.error("rvs", rvs);
+        throw `IMPOSSIBLE CIRCUMSTANCES FOR JOIN. SEE ABOVE.`;
+    }
+}
+
+
+
+const _j = (...rvs) => (rva) => join(rva, ...rvs);
 
 
 /**
@@ -228,7 +269,7 @@ const _j = (rvb) => (rva) => join(rva, rvb);
  */
 function matching(rvl, rvr) {
     const rk = Object.keys(rvr.attrs), shared = Object.keys(rvl.attrs).filter(a => rk.includes(a));
-    const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) != -1);
+    const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) != -1);  // TODO: custom equality when we get more complex types
     return relvar({attrs: rvl.attrs, tuples});
 }
 
@@ -245,7 +286,7 @@ function not_matching(rvl, rvr) {
     if(shared.length == 0) { // Can't use shared.every (efficiently), will always be true on a empty
         return relvar(rvl)
     }else{
-        const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) == -1);
+        const tuples = rvl.tuples.filter(tp => rvr.tuples.findIndex(rp => shared.every(s => tp[s] == rp[s])) == -1);  // TODO: custom equality when we get more complex types
         return relvar({attrs: rvl.attrs, tuples})
     }
 }
@@ -355,7 +396,7 @@ function relvar(raw) {
         attrs: raw.attrs,
         tuples: raw.tuples
                     .map(t=> {return {t, h: hash.MD5(t)}})
-                    .filter(( i, ind, arr) => ind == arr.findIndex(x => x.h == i.h))
+                    .filter(( i, ind, arr) => ind == arr.findIndex(x => x.h == i.h))  // TODO: custom equality when we get more complex types
                     .map(({t}) => t),
         toString: function rvts() { return display_relvar(this)}
     }
@@ -396,6 +437,14 @@ function tuple_from(rv){
 
 function attr_from(tup, attr) {
     return tup[attr];
+}
+
+
+function degree(rv) {
+    return Object.keys(rv.attrs).length
+}
+function cardinality(rv) {
+    return rv.tuples.length;
 }
 
 /**
