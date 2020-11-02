@@ -255,7 +255,7 @@ function minus(rvl, rvr) {
 const _minus = (rvr) => (rvl) => minus(rvl, rvr);
 
 /**
- * Rename a relvar's attributes, in order.
+ * Rename a relvar's attributes.
  * @template T
  * @param {RelvarBasic<T>} rv 
  * @param {Array<[string,string]>} rnt -- Rename Tuples 
@@ -269,7 +269,7 @@ function rename(rv, ...rnt)
 }
 
 /**
- * Rename a relvar's attributes, in order.
+ * Rename a relvar's attributes.
  * @template T
  * @param {Array<[string,string]>} rnt -- Rename Tuples 
  * @returns {(rv: RelvarBasic<T>) => Relvar<T>}
