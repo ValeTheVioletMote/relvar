@@ -7,7 +7,7 @@ Documentation will be sparse as I'm focused more on the development, but here's 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv} = require("../main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext} = require("../main.js");
 
 const _arv = (name, rv) => (db) => assign_rv(db, name, rv);
 
@@ -104,6 +104,16 @@ join(selection(C, "C#"), selection(I, "I#"))
 .tap(_j( selection(C, "C#", "Cname"),  selection(I, "I#", "Iname") ))
 .tap(_sel("Cname", "Iname"))
 .tap(_ren(["Cname", "Character"], ["Iname", "Missing Item"]))
+.tap(logrv);
+
+console.log("Fix overpowered items: ")
+console.log("UPDATE I WHERE Damage > 30: {Damage := Damage / 2}")
+update(I, i=>i.Damage > 30, ["Damage", i => Math.floor(i.Damage/2)])
+.tap(logrv);
+
+console.log("Show Damage Per Durability (DPD): ")
+console.log("EXTEND I: {DPD := Damage / Durability}");
+extend(I, ["DPD", "number", i=>Math.round(i.Damage/i.Durability)])
 .tap(logrv);
 ```
 
@@ -236,4 +246,38 @@ Characters and the items they *don't* have:
 ├──────────────────────┼──────────────────────────────┤
 │ Sir Nic of the Weils │ Common Shortsword            │
 └──────────────────────┴──────────────────────────────┘
+Fix overpowered items: 
+UPDATE I WHERE Damage > 30: {Damage := Damage / 2}
+┌────────────┬──────────────────────────────┬────────────────────┬────────────────┐
+│ I#::number │ Iname::string                │ Durability::number │ Damage::number │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 1          │ Bronze Poniard               │ 10                 │ 10             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 2          │ Glazed Donut                 │ 1                  │ 1              │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 3          │ Venom-Soaked Blade           │ 5                  │ 25             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 4          │ Ancient Spoon                │ 1                  │ 40             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 499            │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 6          │ Common Shortsword            │ 30                 │ 15             │
+└────────────┴──────────────────────────────┴────────────────────┴────────────────┘
+Show Damage Per Durability (DPD):
+EXTEND I: {DPD := Damage / Durability}
+┌────────────┬──────────────────────────────┬────────────────────┬────────────────┬─────────────┐
+│ I#::number │ Iname::string                │ Durability::number │ Damage::number │ DPD::number │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 1          │ Bronze Poniard               │ 10                 │ 10             │ 1           │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 2          │ Glazed Donut                 │ 1                  │ 1              │ 1           │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 3          │ Venom-Soaked Blade           │ 5                  │ 25             │ 5           │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 4          │ Ancient Spoon                │ 1                  │ 80             │ 80          │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 999            │ 999         │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 6          │ Common Shortsword            │ 30                 │ 15             │ 1           │
+└────────────┴──────────────────────────────┴────────────────────┴────────────────┴─────────────┘
 ```

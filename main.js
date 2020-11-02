@@ -512,14 +512,65 @@ function assign_rv(db, name, rv) {
     };
 }
 
-function extend(rv, name, expr){
-
+/**
+ * Creates a new attribute (or overrides an existing one) off a single relvar.
+ * @template T,U
+ * @param {RelvarBasic<T>} rv 
+ * @param {Array<[string, string, (t: Tuple<T>) => any]>} data_tuples 
+ * @param {} expr 
+ * @returns {Relvar<U>}
+ */
+function extend(rv, ...data_tuples){
+    const attrs = 
+        Object.entries(rv.attrs).concat(data_tuples.map(([k,v,_f]) => [k,v])).tap(Object.fromEntries);
+    const tuples = 
+        rv.tuples.map(t => Object.entries(t).concat(data_tuples.map(([k,_v,f]) => [k,f(t)])).tap(Object.fromEntries))
+    return relvar({attrs, tuples});
 }
+
+/**
+ * Creates a new attribute (or overrides an existing one) off a single relvar.
+ * @template T,U
+ * @param {Array<[string, string, (t: Tuple<T>) => any]>} data_tuples 
+ * @param {(t: Tuple<T>) => any} expr
+ * @returns {(rv: RelvarBasic<T>) => Relvar<U>} 
+ */
+const _ext = (...data_tuples) => (rv) => extend(rv, ...data_tuples);
+
+
 function compose(){
 
 }
 
-function update(){
+/**
+ * Apply changes to a subset of tuples dependent upon a where filter.
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ * @param {(t: Tuple<T>) => false} where 
+ * @param {Array<[string, (t: Tuple<T>) => any]>} setters
+ * @returns {Relvar<T>}
+ */
+function update(rv, where, ...setters){
+    const _setters = Object.fromEntries(setters);
+    return relvar({attrs: rv.attrs,
+        tuples: rv.tuples.map(t =>where(t) 
+        ? Object.entries(t)
+                .map(([k,v]) => [k, _setters[k] ? _setters[k](t) : v] )
+                .tap(Object.fromEntries)
+        : t)
+    });
+}
+
+/**
+ * Apply changes to a subset of tuples dependent upon a where filter.
+ * @template T
+ * @param {(t: Tuple<T>) => false} where 
+ * @param {Array<[string, (t: Tuple<T>) => any]>} setters 
+ * @returns {(rv: RelvarBasic<T>) => Relvar<T>}
+ */
+const _up = (where, ...setters) => (rv) => update(rv,where,...setters);
+
+function includes(rva, rvb, proper=false) {
 
 }
 
@@ -536,14 +587,14 @@ function image_relation() {
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv};
+    , db, save_db, assign_rv, update, _up, extend, _ext};
 
 /*
 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv} = require("./main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext} = require("./main.js");
 
 
 */
