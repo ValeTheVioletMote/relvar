@@ -7,7 +7,7 @@ Documentation will be sparse as I'm focused more on the development, but here's 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext} = require("../main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext, count, _cnt, sum, _sum} = require("../main.js");
 
 const _arv = (name, rv) => (db) => assign_rv(db, name, rv);
 
@@ -40,6 +40,7 @@ var I = relvar({
         ,{"I#": 4, "Iname": "Ancient Spoon", "Durability": 1, "Damage": 80}
         ,{"I#": 5, "Iname": "Holy Hand Grenade of Antioch", "Durability": 1, "Damage": 999}
         ,{"I#": 6, "Iname": "Common Shortsword", "Durability": 30, "Damage": 15}
+        ,{"I#": 7, "Iname": "Rot-Hilted Axe", "Durability": 8, "Damage": 15}
     ]
 });
 
@@ -115,6 +116,14 @@ console.log("Show Damage Per Durability (DPD): ")
 console.log("EXTEND I: {DPD := Damage / Durability}");
 extend(I, ["DPD", "number", i=>Math.round(i.Damage/i.Durability)])
 .tap(logrv);
+
+
+console.log("Count of all character-item combos.\nCOUNT ( CI ) :", count(CI));
+console.log("Count of all distinct slots in character-item combos.\nCOUNT ( CI { Slot } ) :", count(CI, "Slot"));
+console.log("Sum of all item damage.\nSUM (I, Damage) :", sum(I, "Damage"));
+console.log("Sum of all distinct item damage values.\nSUM (I, { Damage }) :", sum(I, ["Damage"]));
+console.log("Sum of tripled item damage.\nSUM (I, 3 * Damage) : ", sum(I, "Damage", i=>i.Damage*3) )
+console.log("Sum of all distinct tripled item damage.\n SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) : ", sum(extend(I, ["Damage", "number", i=>i.Damage*3]) , ["Damage"]))
 ```
 
 Output:
@@ -207,6 +216,8 @@ I NOT MATCHING CI
 │ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 999            │
 ├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
 │ 6          │ Common Shortsword            │ 30                 │ 15             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │
 └────────────┴──────────────────────────────┴────────────────────┴────────────────┘
 All characters with an item that deals more than 30 damage:
 C MATCHING (CI JOIN (I WHERE {Damage > 30}))
@@ -227,7 +238,7 @@ Just their names:
 ├──────────────────────┤
 │ Sir Nic of the Weils │
 └──────────────────────┘
-Characters and the items they *don't* have:
+Characters and the items they *don't* have: 
 ((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS Missing Item}
 ┌──────────────────────┬──────────────────────────────┐
 │ Character::string    │ Missing Item::string         │
@@ -240,11 +251,15 @@ Characters and the items they *don't* have:
 ├──────────────────────┼──────────────────────────────┤
 │ Reese of Wellington  │ Common Shortsword            │
 ├──────────────────────┼──────────────────────────────┤
+│ Reese of Wellington  │ Rot-Hilted Axe               │
+├──────────────────────┼──────────────────────────────┤
 │ Sir Nic of the Weils │ Venom-Soaked Blade           │
 ├──────────────────────┼──────────────────────────────┤
 │ Sir Nic of the Weils │ Holy Hand Grenade of Antioch │
 ├──────────────────────┼──────────────────────────────┤
 │ Sir Nic of the Weils │ Common Shortsword            │
+├──────────────────────┼──────────────────────────────┤
+│ Sir Nic of the Weils │ Rot-Hilted Axe               │
 └──────────────────────┴──────────────────────────────┘
 Fix overpowered items: 
 UPDATE I WHERE Damage > 30: {Damage := Damage / 2}
@@ -262,8 +277,10 @@ UPDATE I WHERE Damage > 30: {Damage := Damage / 2}
 │ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 499            │
 ├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
 │ 6          │ Common Shortsword            │ 30                 │ 15             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │
 └────────────┴──────────────────────────────┴────────────────────┴────────────────┘
-Show Damage Per Durability (DPD):
+Show Damage Per Durability (DPD): 
 EXTEND I: {DPD := Damage / Durability}
 ┌────────────┬──────────────────────────────┬────────────────────┬────────────────┬─────────────┐
 │ I#::number │ Iname::string                │ Durability::number │ Damage::number │ DPD::number │
@@ -279,5 +296,19 @@ EXTEND I: {DPD := Damage / Durability}
 │ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 999            │ 999         │
 ├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
 │ 6          │ Common Shortsword            │ 30                 │ 15             │ 1           │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
+│ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │ 2           │
 └────────────┴──────────────────────────────┴────────────────────┴────────────────┴─────────────┘
+Count of all character-item combos.
+COUNT ( CI ) : 5
+Count of all distinct slots in character-item combos.
+COUNT ( CI { Slot } ) : 3
+Sum of all item damage.
+SUM (I, Damage) : 1145
+Sum of all distinct item damage values.
+SUM (I, { Damage }) : 1130
+Sum of tripled item damage.
+SUM (I, 3 * Damage) :  3435
+Sum of all distinct tripled item damage.
+ SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) :  3390
 ```

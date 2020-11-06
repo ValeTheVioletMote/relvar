@@ -132,13 +132,15 @@ const _un = (rvb) => (rva) => union(rva, rvb);
  */
 function selection(rv, ...attr_list) {
 
+    const is_empty = (obj) => {for(var _i in obj) return false; return true;}
+
     const sel_attrs = (ob) =>
         Object.entries(ob).filter(([k,_v]) => attr_list.includes(k)).tap(Object.fromEntries);
 
 
     return relvar({
         attrs: sel_attrs(rv.attrs)
-        , tuples: rv.tuples.map(sel_attrs)
+        , tuples: rv.tuples.map(sel_attrs).filter(t => is_empty(t) == false)
     });
 }
 
@@ -570,13 +572,59 @@ function update(rv, where, ...setters){
  */
 const _up = (where, ...setters) => (rv) => update(rv,where,...setters);
 
-function includes(rva, rvb, proper=false) {
+function __includes(rva, rvb, proper=false) {
 
 }
 
-function sum() {
+function includes() {
+
+}
+
+function proper_includes() {
+
+}
+
+function included_in(){
+
+}
+
+function is_proper_included_in() {
     
 }
+
+/**
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ * @param {T | [T]} attr 
+ * @param {(i: Tuple<T>[T]) => any | undefined} opt_ext 
+ */
+function sum(rv, attr, opt_ext) {
+    const x = 
+        typeof opt_ext == 'function' ? extend(rv, [attr, rv.attrs[attr], opt_ext]) 
+            : Array.isArray(attr) && attr.length == 1 // If it's a tuple, we're doing a select to get distincts
+                ? selection(rv, attr[0])
+                : rv;
+    const agat = Array.isArray(attr) ? attr[0] : attr;
+    // TODO: add custom 'add' operator and identity property so other types may define one.
+    const {add, identity} = {add: (x,y) => x+y, identity: 0};
+    return x.tuples.reduce((acc, curr) => add(acc, curr[agat]), identity);
+}
+
+/**
+ * @template T
+ * @param {T | [T]} attr 
+ * @param {(i: Tuple<T>[T]) => any | undefined} opt_ext 
+ * @returns {(rv: RelvarBasic<T>) => any}
+ */
+const _sum = (attr, opt_ext) => (rv) => sum(rv, attr, opt_ext);
+
+// file:///A:/Downloads/SQL%20and%20Relational%20Theory%20How%20to%20Write%20Accurate%20SQL%20Code(True%20pdf)by%20C.J.Date(pradyutvam2)[o'reily].pdf
+
+function count(rv, ...opt_sel) {
+    return cardinality(opt_sel.length == 0 ? rv : selection(rv, ...opt_sel))
+}
+
+const _cnt = (...opt_sel) => (rv) => count(rv, opt_sel);
 
 function image_relation() {
 
@@ -587,14 +635,14 @@ function image_relation() {
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext};
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt};
 
 /*
 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext} = require("./main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt} = require("./main.js");
 
 
 */
