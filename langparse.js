@@ -325,7 +325,9 @@ function parse(input) {
 
 
     function maybe_binary(left, my_prec) {
+        console.log("left", left);
         var tok = is_op();
+        console.log("tok", tok);
         if(tok) {
             var his_prec = PRECEDENCE[tok.value];
             if(his_prec > my_prec) {
@@ -348,7 +350,7 @@ function parse(input) {
 
 var code = 
 `
-    test = 4 + (4 + 3)
+    test = if (9+3 > 8) then 4 + (4 + 3); end
 `;
 
 var ast = parse(token_stream(input_stream(code)));

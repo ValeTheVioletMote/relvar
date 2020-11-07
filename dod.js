@@ -118,6 +118,15 @@ function parse_tokens(chars) {
     }
 }
 
+
+function parse_atom(){
+    
+}
+
+function parse_expr(){
+
+}
+
 /**
  * Parse the language!
  * @param {ReturnType<parse_tokens>} tokens 
