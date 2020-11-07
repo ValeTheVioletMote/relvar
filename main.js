@@ -432,7 +432,7 @@ function relvar(raw) {
 /**
  * @template T,U
  * @param {RelvarBasic<T>} rv
- * @returns{Tuple<U>}
+ * @returns {Tuple<U>}
  */
 function tuple_from(rv){
     return rv.tuples[0];

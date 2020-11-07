@@ -28,11 +28,7 @@ function input_stream(input) {
 function token_stream(input) {
 
     var current = null;
-    var keywords = ["JOIN", "MINUS", "UNION", "ALL BUT", "TRUE", "FALSE"
-    , "RENAME", "AS", "MATCHING", "NOT MATCHING", "FROM", "TUPLE"
-    , "SUM", "EXTEND", "COMPOSE", "UPDATE", "KEY", "CALL", "TYPE", "OPERATOR", "WHEN", "THEN", "CASE", "WITH"
-    , "GROUP", "SUMMARIZE", "BY" ];
-    // perhaps something for Image Relations as well, though !! is fine too...
+    var keywords = " if then else lambda λ true false ";
     return {
         next,
         peek,
@@ -41,7 +37,7 @@ function token_stream(input) {
     };
 
     function is_keyword(x) {
-        return keywords.indexOf(x.toUpperCase()) >= 0;
+        return keywords.indexOf(" "+x+" ") >= 0;
     }
 
     function is_digit(ch) {
@@ -49,11 +45,11 @@ function token_stream(input) {
     }
     
     function is_id_start(ch) {
-        return /[a-zA-Z_]/i.test(ch);
+        return /[a-zλ_]/i.test(ch);
     }
 
     function is_id(ch) {
-        return is_id_start(ch) || "-0123456789".indexOf(ch) >= 0;
+        return is_id_start(ch) || "?!-<>=0123456789".indexOf(ch) >= 0;
     }
 
     function is_op_char(ch) {
@@ -167,7 +163,7 @@ var FALSE = {type: "bool", value: false};
 function parse(input) {
     
     var PRECEDENCE = {
-        "=": 1, ":=": 1, "!!": 1,
+        "=": 1,
         "||": 2,
         "&&": 3,
         "<":7, ">":7, "<=":7, ">=":7, "==":7, "!=":7,
@@ -329,7 +325,9 @@ function parse(input) {
 
 
     function maybe_binary(left, my_prec) {
+        console.log("left", left);
         var tok = is_op();
+        console.log("tok", tok);
         if(tok) {
             var his_prec = PRECEDENCE[tok.value];
             if(his_prec > my_prec) {
@@ -352,7 +350,7 @@ function parse(input) {
 
 var code = 
 `
-    test = 4 + (4 + 3)
+    test = if (9+3 > 8) then 4 + (4 + 3); end
 `;
 
 var ast = parse(token_stream(input_stream(code)));

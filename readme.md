@@ -118,12 +118,12 @@ extend(I, ["DPD", "number", i=>Math.round(i.Damage/i.Durability)])
 .tap(logrv);
 
 
-console.log("Count of all character-item combos.\nCOUNT ( CI ) :", count(CI));
-console.log("Count of all distinct slots in character-item combos.\nCOUNT ( CI { Slot } ) :", count(CI, "Slot"));
-console.log("Sum of all item damage.\nSUM (I, Damage) :", sum(I, "Damage"));
-console.log("Sum of all distinct item damage values.\nSUM (I, { Damage }) :", sum(I, ["Damage"]));
-console.log("Sum of tripled item damage.\nSUM (I, 3 * Damage) : ", sum(I, "Damage", i=>i.Damage*3) )
-console.log("Sum of all distinct tripled item damage.\n SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) : ", sum(extend(I, ["Damage", "number", i=>i.Damage*3]) , ["Damage"]))
+console.log("Count of all character-item combos:\n\tCOUNT ( CI ) = ", count(CI));
+console.log("Count of all distinct slots in character-item combos:\n\tCOUNT ( CI { Slot } ) = ", count(CI, "Slot"));
+console.log("Sum of all item damage.\n\tSUM (I, Damage) = ", sum(I, "Damage"));
+console.log("Sum of all distinct item damage values:\n\tSUM (I, { Damage }) = ", sum(I, ["Damage"]));
+console.log("Sum of tripled item damage.\n\tSUM (I, 3 * Damage) = ", sum(I, "Damage", i=>i.Damage*3) )
+console.log("Sum of all distinct tripled item damage:\n\tSUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) = ", sum(extend(I, ["Damage", "number", i=>i.Damage*3]) , ["Damage"]))
 ```
 
 Output:
@@ -299,16 +299,16 @@ EXTEND I: {DPD := Damage / Durability}
 ├────────────┼──────────────────────────────┼────────────────────┼────────────────┼─────────────┤
 │ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │ 2           │
 └────────────┴──────────────────────────────┴────────────────────┴────────────────┴─────────────┘
-Count of all character-item combos.
-COUNT ( CI ) : 5
-Count of all distinct slots in character-item combos.
-COUNT ( CI { Slot } ) : 3
+Count of all character-item combos:
+        COUNT ( CI ) =  5
+Count of all distinct slots in character-item combos:
+        COUNT ( CI { Slot } ) =  3
 Sum of all item damage.
-SUM (I, Damage) : 1145
-Sum of all distinct item damage values.
-SUM (I, { Damage }) : 1130
+        SUM (I, Damage) =  1145
+Sum of all distinct item damage values:
+        SUM (I, { Damage }) =  1130
 Sum of tripled item damage.
-SUM (I, 3 * Damage) :  3435
-Sum of all distinct tripled item damage.
- SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) :  3390
+        SUM (I, 3 * Damage) =  3435
+Sum of all distinct tripled item damage:
+        SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) =  3390
 ```
