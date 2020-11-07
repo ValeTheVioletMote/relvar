@@ -394,7 +394,7 @@ const _ren = (...rnt) => (rv) => rename(rv, ...rnt);
  * @param {RelvarBasic<T>} raw -- relvar minus the secret information
  * @returns {Relvar<T>}
  */
-function relvar(raw) { // Perhaps this is the one-stop shop to check for constraints?
+function relvar(raw) {
     return  {
         attrs: raw.attrs,
         tuples: raw.tuples
@@ -504,6 +504,7 @@ function save_db(db) {
  * @returns {DB}
  */
 function assign_rv(db, name, rv) {
+    // TODO: constraints are checked here.
     const new_relvars = {...db.data.relvars};
     new_relvars[name] = {attrs: rv.attrs, tuples: rv.tuples};
     return {
