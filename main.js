@@ -432,7 +432,7 @@ function relvar(raw) { // Perhaps this is the one-stop shop to check for constra
 /**
  * @template T,U
  * @param {RelvarBasic<T>} rv
- * @returns{Tuple<U>}
+ * @returns {Tuple<U>}
  */
 function tuple_from(rv){
     return rv.tuples[0];

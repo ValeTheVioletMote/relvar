@@ -22,3 +22,7 @@ export type DB = {
         relvars: Record<string, RelvarBasic<*>>
     },
 }
+
+export type Constraint = 
+    | {t: "UNIQUE", relvar: string, attrs: string[]}
+    | {t: "FOREIGN", }
