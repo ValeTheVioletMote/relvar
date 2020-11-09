@@ -13,10 +13,14 @@ export type UnaryOperator =
 
 export type Token = 
     | {value: Keyword, type: "KW"}
+    | {value: number, type: "NUMBER"}
     | {value: string, type: "VAR" | "OP" | "PUNC" | "STRING"}
 
 export type Var = 
     {value: string, type: "VAR"}
+
+export type BPrimitive = 
+    Var | {value: number, type: "NUMBER"};
 
 export type Branch = 
     | {type: "assign", left: Var, right: Branch}

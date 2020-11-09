@@ -1,6 +1,7 @@
 // Do D.js
 require("./main.js"); // lazy tap grab
 var t1 = "UPDATE I WHERE Damage > 30: {Damage := Damage / 2}";
+var t1b = "UPDATE I : {Damage := Damage / 2}";
 var t2 = "(C join I join CI){ALL BUT C#, HP, I#}";
 
 const KEYWORDS = ["JOIN", "MINUS", "UNION", "ALL","BUT", "TRUE", "FALSE"
@@ -17,6 +18,10 @@ function is_keyword(x) {
 
 function is_whitespace(ch) {
     return " \t\n".indexOf(ch) >= 0;
+}
+
+function is_digit(ch) {
+    return /[0-9]/i.test(ch);
 }
 
 function is_id_start(ch) {
@@ -48,13 +53,15 @@ function parse_chars(a, b, xs) {
 /**
  * 
  * @param {string} char
- * @returns {"SPACE" | "IDENT" | "OP" | "PUNC" | "STRING" | "EOF" | "UNKNOWN"}
+ * @returns {"SPACE" | "DIGIT" | "IDENT" | "OP" | "PUNC" | "STRING" | "EOF" | "UNKNOWN"}
  */
 function determine(char="", start=false) {
     return char == ""
             ? "EOF"
         : is_whitespace(char)
             ? "SPACE"
+        : is_digit(char)
+            ? "DIGIT"
         : (start && is_id_start(char)) || is_id(char)
             ? "IDENT"
         : is_op_char(char)
@@ -110,6 +117,11 @@ function parse_tokens(chars) {
         case "UNKNOWN": throw `Unknown character: "${chars[0]}" NEAR "${chars_take(chars, 15)}"`;
         case "SPACE":
             return parse_tokens(chars.slice(chars.findIndex(c => determine(c) != "SPACE")));
+        case "DIGIT":
+            const next_pos = chars.findIndex((c, ind, arr) => !(determine(c) == "DIGIT" || (c == "." && arr.indexOf(".") == ind))),
+                value = Number(chars.slice(0, next_pos).tap(chars_tostr)),
+                next = chars.slice(next_pos);
+            return [{type: "NUMBER", value}].concat(parse_tokens(next));
         case "IDENT":{
             const {next, value} = read_ahead();
             return [{type: is_keyword(value) ? "KW" : "VAR", value}].concat(parse_tokens(next));}
@@ -127,44 +139,19 @@ function parse_tokens(chars) {
     }
 }
 
+// Perhaps we should rethink the latter parsing portion in the same as the first, i.e., each 'type' needs
+// to be able to identify its own end? We must be overcomplicating this...
 
-/**
- * 
- * @param {Token[]} tokens 
- * @param {string} stop 
- * @param {string} separator 
- * @param {(t: Token[]) => ReturnType<parse_atom>} parser
- * @returns {ReturnType<parse_atom>}
- */
-function parse_delimited(tokens, stop, separator, parser) {
+// Plausible that we need to handle INDICES FIRST, then collect the data afterward.
+// find/identify, then parse.
 
-    function delimited(tokens, stop, separator, parser) {
-        const t = tokens[0];
-        if(t.type == "PUNC"){
-            if(t.value == stop) return [];
-            if(t.value == separator) return delimited(tokens.slice(1), stop, separator, parser);
-        }
-        const p = parser(tokens);
-        return [p].concat(tokens.slice(p.next_ind));
-    }
-    const res = delimited(tokens, stop, separator, parser);
-    if(res.length > 0) {
-        return {branches: res.map(r=>r.branches), next_ind: res.reduce((acc, r) => acc.next_ind+r.next_ind)}
-    }else{
-        return {branches: [], next_ind: 1};
-    }
-}
 
-/**
- * 
- * @param {Token[]} tokens
- * @returns {ReturnType<parse_atom>}
- */
-function parse_expression(tokens) {
-    const atom = parse_atom(tokens);
-    const pb = parse_poss_binary(tokens.slice(atom.next_ind), atom.branches, 0)
-    return {next_ind: atom.next_ind + pb.next_ind, branches: pb.branches};
-}
+// Should it be able to fragment itself? If so, how does it know when to, when not to? Siblings vs parents
+
+// the point is perhaps to avoid ending up in a situation where there's an unknown terminus:
+// I should be able to predict when variables/numbers are going to be placed,
+// as they're used in operations and as the contents of delimiters (as well as expressions)
+
 
 var PRECEDENCE = {
     ":=": 1,
@@ -176,119 +163,85 @@ var PRECEDENCE = {
 };
 
 /**
- * 
- * @param {Token[]} tokens 
- * @param {Branch[]} left
- * @param {number} prec 
+ * @param {Branch} left
+ * @param {Token[]} tokens
+ * @param {number} prec -- Precedence
+ * @param {number} add_used -- Accumulated used indices
+ * @returns {[[Branch], number]} -- Branch & Indices Used
  */
-function parse_poss_binary(tokens, left, prec) {
-
-    function _parsepbin(tokens, left, prec) {
-        const t = tokens[0];
-        const bin_prec = PRECEDENCE[t.value.toUpperCase()],
-            is_bin = (t.type == "KW" || t.type == "OP") && bin_prec != undefined;
-        if(is_bin && bin_prec > prec) {
-            const n_toks = tokens.slice(1)
-                , n_atom = parse_atom(n_toks);
-            const {branches: right, next_ind} = _parsepbin(n_toks, n_atom, bin_prec);
-    
-            const branch = t.value == ":="
-                ? {type: "assign", left, right}
-                : {type: "binary", operator: t.value, left, right};
-            
-            const toks = n_toks.slice(next_ind);
-    
-            return _parsepbin()
-        }
+function doif_binary(left, tokens, prec=0, acc_used=0) {
+    console.log("left", left);
+    // console.log("prec", prec);
+    // console.log("tokens len", tokens.length);
+    // console.log("accused", acc_used);
+    const peek = (ahead) => tokens[0+ahead] ?? {type: "None", value: ""};
+    const t = peek(0);
+    console.log("t", t);
+    const bin_prec = PRECEDENCE[t.value.toUpperCase()],
+          is_bin = (t.type == "KW" || t.type == "OP") && bin_prec != undefined;
+    if(is_bin && bin_prec > prec) {
+        const [__right, used] = parse(tokens.slice(1))
+        console.log("right_used", used);
+        const [right, new_acc] = doif_binary(__right, tokens.slice(1+used), bin_prec, 1+used+acc_used);
+        console.log('new_used', new_acc);
+        const binary = t.value == ":=" ? {type: "assign", left, right}
+                    : {type: "binary", operator: t.value, left, right};
+        return doif_binary(binary, tokens.slice(new_acc), prec, new_acc);
     }
+    console.log("left_acc_used", acc_used);
+    return [left,acc_used];
+}
 
+/**
+ * @param {Token[]} tokens
+ * @returns {[Branch, number]} -- Branch & Indices Used
+ */
+function parse_expr(tokens){
+    const [tk_branch, tk_used] = parse(tokens);
+    const [branch, used] = doif_binary(tk_branch, tokens.slice(tk_used));
+    return [branch, tk_used+used];
 }
 
 /**
  * 
  * @param {Token[]} tokens
- * @return {{next_ind: number, branches: Branch[]}} 
- */
-function parse_atom(tokens){
-    const t = tokens[0];    
-    const peek = (ahead=1) => tokens[0+ahead] ?? {type: "None", value: ""};
-    switch(t.type) {
-        case "PUNC": {
-            if(t.value == "(") {
-                const {branches, next_ind} = parse_expression(tokens.slice(1));
-                // todo: affirm next token is a )
-                return {branches, next_ind: next_ind+1};
-            }else if(t.value == "{") {
-                return {};
-            }else{
-                return {};
-            }
-        }
-        case "KW": {
-            switch(t.value) {
-                case "UPDATE": {
-                    const rv = peek(1), where_or_colon = peek(2);
-                    if(rv.type != "VAR") throw `Invalid after UPDATE: ${rv.value}`;
-
-                    const t_clause = where_or_colon.type == "KW" && where_or_colon.value == "WHERE"
-                                ? parse_expression(tokens.slice(3))
-                                : {next_ind: 3, branches: [{type: "NO_CLAUSE"}]};
-                    const colon = peek(t_clause.next_ind);
-                    // TODO - have tokens identify their pos as a property?
-                    if(colon.type != "OP" || colon.value != ":") throw `Expected colon @ ${tokens.slice(0,t_clause.next_ind).map(t=>t.value).join(" ")}`;
-                    const l_brace = peek(t_clause.next_ind+1);
-                    if(l_brace.type != "PUNC" || l_brace.value != "{") throw `Expected left brace @ ${tokens.slice(0,t_clause.next_ind+1).map(t=>t.value).join(" ")}`;
-                    const sets = parse_delimited(tokens.slice(t_clause.next_ind+2), "}", ",", parse_expression);
-                }
-            }
-        }
-    }
-}
-
-
-
-/**
- * Parse the language!
- * @param {ReturnType<parse_tokens>} tokens 
- * @returns {Array<{} >}
+ * @returns {[Branch, number]} -- Branch & Indices Used
  */
 function parse(tokens) {
-    const t = tokens[0];
-    const peek = (ahead=1) => tokens[0+ahead] ?? {type: "None", value: ""};
-
-    const peek = tokens[1] ?? {type: "None"};
-    switch(t.type) {
-
-        case "PUNC":{
-            if(t.value == "(") {
-                const {branches, next_ind} = parse_expression(tokens);
-                return [branches].concat(tokens.slice(next_ind));
-            }
-            return [];
+    const peek = (ahead) => tokens[0+ahead] ?? {type: "None", value: ""};
+    const t = peek(0), p = peek(1);
+    // console.log("t", t);
+    if(t.type == "NUMBER" || t.type == "VAR") {
+        return [t, 1];
+    }else if(t.type == "PUNC"){
+        if(t.value == "(") {
+            const [branch, used] = parse(tokens.slice(1));
+            return [branch, used+2];
         }
-        case "KW": {
-            switch(t.value) {
-                case "UPDATE": {
-                    const rv = peek(1), where_or_colon = peek(2);
-                    if(rv.type != "VAR") throw `Invalid after UPDATE: ${rv.value}`;
 
-                    const clause = where_or_colon.type == "KW" && where_or_colon.value == "WHERE"
-                                ? parse(tokens.slice(3))
-                                : {type: "NO_CLAUSE"}
-
-
-                    if(rv) {
-
-                    }else if(where_or_colon.type == "OP" && where_or_colon.value == ":") {
-
-                    }
-                }
-                default: {
-                    return [];
-                }
-            }
+    }else if(t.type == "KW"){
+        if(t.value == "UPDATE") {
+            const rv = p;
+            const p2 = peek(2);
+            const [clause, used] = p2.type == "KW" && p2.value == "WHERE"
+                ? parse_expr(tokens.slice(3)) : [{type: "NO_CLAUSE"}, -1];
+            // console.log("clause", clause);
+            // console.log("used", used);
+            const aft = 3+used;
+            // console.log("aft", aft);
+            // console.log("@aft", tokens[aft]);
+            const _col = peek(aft); // assert ':'
+            const _lbr = peek(aft+1); // assert '{'
+            const [set, s_used] = parse_expr(tokens.slice(aft+2)) // TODO delimited
+            return [{
+                type: "update",
+                clause,
+                relvar: rv,
+                set
+            }, aft+2+s_used];
         }
     }
 }
 
-module.exports = {parse_tokens, determine, t1, t2}
+
+module.exports = {parse_tokens, determine, t1, t1b, t2, parse, parse_expr, doif_binary}
