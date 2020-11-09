@@ -1,6 +1,6 @@
 {
   "name": "relvar.js",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "An amateur database inspired by CJ Date and Project M36.",
   "main": "main.js",
   "dependencies": {
