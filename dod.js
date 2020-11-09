@@ -159,7 +159,8 @@ var PRECEDENCE = {
     "AND": 3,
     "<":7, ">":7, "<=":7, ">=":7, "==":7, "!=":7,
     "+":10, "-":10,
-    "*":20, "/":20, "%":20, "JOIN":20
+    "*":20, "/":20, "%":20
+    , "JOIN":10, "{": 20
 };
 
 /**
@@ -215,8 +216,10 @@ function parse(tokens) {
         return [t, 1];
     }else if(t.type == "PUNC"){
         if(t.value == "(") {
-            const [branch, used] = parse(tokens.slice(1));
+            const [branch, used] = parse_expr(tokens.slice(1));
             return [branch, used+2];
+        }else if(t.value == "{") { // SELECTOR SYNTAX
+
         }
 
     }else if(t.type == "KW"){
@@ -224,7 +227,7 @@ function parse(tokens) {
             const rv = p;
             const p2 = peek(2);
             const [clause, used] = p2.type == "KW" && p2.value == "WHERE"
-                ? parse_expr(tokens.slice(3)) : [{type: "NO_CLAUSE"}, -1];
+                ? parse_expr(tokens.slice(3)) : [{type: "NO_CLAUSE"}, -1]; // -1 handles the lack of 'WHERE'.
             // console.log("clause", clause);
             // console.log("used", used);
             const aft = 3+used;
@@ -241,6 +244,11 @@ function parse(tokens) {
             }, aft+2+s_used];
         }
     }
+}
+
+function parse_lang(str) {
+    const tokens = parse_tokens(Array.from(str));
+    return parse(tokens);
 }
 
 
