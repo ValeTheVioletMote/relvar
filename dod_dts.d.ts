@@ -28,4 +28,6 @@ export type Branch =
     | {type: "update", relvar: Var, clause: Branch | {type: "NO_CLAUSE"}, set: Branch}
     | {type: "delete", relvar: Var, clause: Branch}
     | {type: "tree", branches: Branch[]}
+    | {type: "all_but", attrs: Var[]}
+    | {type: "select", left: Branch, right: Branch}
     // | {type: ""}

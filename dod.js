@@ -3,6 +3,7 @@ require("./main.js"); // lazy tap grab
 var t1 = "UPDATE I WHERE Damage > 30: {Damage := Damage / 2}";
 var t1b = "UPDATE I : {Damage := Damage / 2}";
 var t2 = "(C join I join CI){ALL BUT C#, HP, I#}";
+var t3 = "((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS 'Missing Item'}";
 
 const KEYWORDS = ["JOIN", "MINUS", "UNION", "ALL","BUT", "TRUE", "FALSE"
 , "RENAME", "AS", "MATCHING", "NOT", "FROM", "TUPLE", "WHERE"
@@ -135,7 +136,8 @@ const PRECEDENCE = {
     "<":7, ">":7, "<=":7, ">=":7, "==":7, "!=":7,
     "+":10, "-":10,
     "*":20, "/":20, "%":20
-    , "JOIN":10, "{": 20
+    , "AS": 30, "RENAME": 10
+    , "JOIN":10, "MINUS": 10, "MATCHING": 10, "NOT MATCHING": 10, "{": 20
 };
 
 
@@ -143,33 +145,40 @@ const PRECEDENCE = {
  * @param {Branch} left
  * @param {Token[]} tokens
  * @param {number} prec -- Precedence
- * @param {number} add_used -- Accumulated used indices
+ * @param {number} acc_ind -- Accumulated used indices
  * @returns {[Branch, number]} -- Branch & Indices Used
  */
-function doif_binary(left, tokens, prec=0, acc_used=0) {
-    // console.log("left", left);
-    // console.log("prec", prec);
-    // console.log("tokens len", tokens.length);
-    // console.log("accused", acc_used);
-    const peek = (ahead) => tokens[0+ahead] ?? {type: "None", value: ""};
-    const t = peek(0);
-    // console.log("t", t);
-    const bin_prec = PRECEDENCE[t.value.toUpperCase()],
-          is_bin = bin_prec != undefined;
+function doif_binary(left, tokens, prec=0, acc_ind=0){
+
+    const m_op = tokens[0] ?? {type: "None", value: ""}
+    , op_name = String(m_op.value).toUpperCase()
+    , bin_prec = PRECEDENCE[op_name]
+    , is_bin = bin_prec != undefined && !["VAR", "STRING"].includes(m_op.type)
+    
     if(is_bin && bin_prec > prec) {
-        // todo: parse delimited if delimited results expected
-        const delims = DELIMITED_BINS[t.value.toUpperCase()];
-        const [__right, used] = delims == undefined ? parse(tokens.slice(1)) : delimited(tokens.slice(1), ...delims).tap(([branches, skip]) => [{type: "tree", branches}, skip]);
-        // console.log("right_used", used);
-        const [right, new_acc] = doif_binary(__right, tokens.slice(1+used), bin_prec, 1+used+acc_used);
-        // console.log("right", right);
-        // console.log('new_used', new_acc);
-        const binary = t.value == ":=" ? {type: "assign", left, right}
-                    : {type: "binary", operator: t.value, left, right};
-        return doif_binary(binary, tokens.slice(new_acc), prec, new_acc);
+        const use_op = 1;
+        const delims = DELIMITED_BINS[op_name];
+        const [parse_right, psr_used] = 
+            delims == undefined 
+                ? op_name == "RENAME" 
+                        // We skip over 'RENAME' to delimit on '{', then replenish the lost 'used'
+                    ? delimited(tokens.slice(2), ",", "}", parse_expr).tap(([b, used]) => [b, used+1]) 
+                    : parse(tokens.slice(1))
+                : delimited(tokens.slice(1), ...delims)
+                    .tap(([branches, used]) => branches.length == 1 ? [branches[0], used] 
+                                                : [{type: "tree", branches}, used]);
+        const [right, r_used] = doif_binary(parse_right, tokens.slice(use_op+psr_used), bin_prec)
+        
+        const binary = op_name == ":=" ? {type: "assign", left, right}
+                        : op_name == "{" ? {type: "select", left, right}
+                        : {type: "binary", operator: op_name, left, right};
+        
+        // console.log("Began with: ", tokens.map(v=>v.value).join(" |> "))
+        // console.log("Returning with: ", tokens.slice(use_op+psr_used+r_used).map(v=>v.value).join(" |> "))
+        return doif_binary(binary, tokens.slice(use_op+psr_used+r_used), prec, acc_ind+use_op+psr_used+r_used);
+        
     }
-    // console.log("left_acc_used", acc_used);
-    return [left,acc_used];
+    return [left, acc_ind]; // Moves no tokens
 }
 
 const DELIMITED_BINS = {
@@ -222,7 +231,7 @@ function parse(tokens) {
     const peek = (ahead) => tokens[0+ahead] ?? {type: "None", value: ""};
     const t = peek(0), p = peek(1);
     // console.log("t", t);
-    if(t.type == "NUMBER" || t.type == "VAR") {
+    if(t.type == "NUMBER" || t.type == "VAR" || t.type == "STRING") {
         return [t, 1];
     }else if(t.type == "PUNC"){
         if(t.value == "(") {
@@ -247,13 +256,20 @@ function parse(tokens) {
                 set
             }, set_ind+s_used];
         }
+        if(t.value == "ALL") {
+            if(p.value == "BUT") {
+                const [attrs, used] = delimited(tokens.slice(2), ",", "}", parse);
+                // Subtracting 1 from used so that the parent delimiter can complete itself by reusing the '}'.
+                return [{type: "all_but", attrs}, 1+used];
+            }
+        }
     }
     console.error("Unexpected: ", t);
     return [t, 1];
 }
 
 function parse_lang(str) {
-    const tokens = parse_tokens(Array.from(str));
+    const tokens = parse_tokens(Array.from(str).concat([""])); // Needs an EOF or risks infinite
     const run_parse = (tokens, prog=[]) => {
         const [branch, used] = parse_expr(tokens);
         const new_tokens = tokens.slice(used);
@@ -264,4 +280,4 @@ function parse_lang(str) {
 }
 
 
-module.exports = {parse_tokens, determine, t1, t1b, t2, parse, parse_expr, doif_binary, delimited, parse_lang}
+module.exports = {parse_tokens, determine, t1, t1b, t2, t3, parse, parse_expr, doif_binary, delimited, parse_lang}
