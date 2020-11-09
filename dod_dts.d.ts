@@ -27,4 +27,5 @@ export type Branch =
     | {type: "binary", operator: BinaryOperator, left: Var | Branch, right: Var | Branch}
     | {type: "update", relvar: Var, clause: Branch | {type: "NO_CLAUSE"}, set: Branch}
     | {type: "delete", relvar: Var, clause: Branch}
+    | {type: "tree", branches: Branch[]}
     // | {type: ""}

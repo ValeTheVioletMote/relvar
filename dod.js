@@ -9,8 +9,8 @@ const KEYWORDS = ["JOIN", "MINUS", "UNION", "ALL","BUT", "TRUE", "FALSE"
 , "SUM", "EXTEND", "COMPOSE", "UPDATE", "KEY", "CALL", "TYPE", "OPERATOR", "WHEN", "THEN", "CASE", "WITH"
 , "GROUP", "SUMMARIZE", "BY", "CONSTRAINT", "AND", "OR" ];
 
-const RELVAR_BINARY_KWS = ["JOIN", "MINUS", "UNION", "MATCHING", "NOT MATCHING", ];
-const RELVAR_UNARY_KWS = ["FROM TUPLE"];
+// const RELVAR_BINARY_KWS = ["JOIN", "MINUS", "UNION", "MATCHING", "NOT MATCHING", ];
+// const RELVAR_UNARY_KWS = ["FROM TUPLE"];
 
 function is_keyword(x) {
     return KEYWORDS.indexOf(x.toUpperCase()) >= 0;
@@ -39,17 +39,6 @@ function is_punc(ch) {
 function is_id(ch) {
     return is_id_start(ch) || "#-_0123456789".indexOf(ch) >= 0;
 }
-
-/**
- * 
- * @param {string} a 
- * @param {string | undefined} b 
- * @param {Array<string>} xs 
- */
-function parse_chars(a, b, xs) {
-
-}
-
 /**
  * 
  * @param {string} char
@@ -139,21 +128,7 @@ function parse_tokens(chars) {
     }
 }
 
-// Perhaps we should rethink the latter parsing portion in the same as the first, i.e., each 'type' needs
-// to be able to identify its own end? We must be overcomplicating this...
-
-// Plausible that we need to handle INDICES FIRST, then collect the data afterward.
-// find/identify, then parse.
-
-
-// Should it be able to fragment itself? If so, how does it know when to, when not to? Siblings vs parents
-
-// the point is perhaps to avoid ending up in a situation where there's an unknown terminus:
-// I should be able to predict when variables/numbers are going to be placed,
-// as they're used in operations and as the contents of delimiters (as well as expressions)
-
-
-var PRECEDENCE = {
+const PRECEDENCE = {
     ":=": 1,
     "OR": 2,
     "AND": 3,
@@ -163,34 +138,69 @@ var PRECEDENCE = {
     , "JOIN":10, "{": 20
 };
 
+
 /**
  * @param {Branch} left
  * @param {Token[]} tokens
  * @param {number} prec -- Precedence
  * @param {number} add_used -- Accumulated used indices
- * @returns {[[Branch], number]} -- Branch & Indices Used
+ * @returns {[Branch, number]} -- Branch & Indices Used
  */
 function doif_binary(left, tokens, prec=0, acc_used=0) {
-    console.log("left", left);
+    // console.log("left", left);
     // console.log("prec", prec);
     // console.log("tokens len", tokens.length);
     // console.log("accused", acc_used);
     const peek = (ahead) => tokens[0+ahead] ?? {type: "None", value: ""};
     const t = peek(0);
-    console.log("t", t);
+    // console.log("t", t);
     const bin_prec = PRECEDENCE[t.value.toUpperCase()],
-          is_bin = (t.type == "KW" || t.type == "OP") && bin_prec != undefined;
+          is_bin = bin_prec != undefined;
     if(is_bin && bin_prec > prec) {
-        const [__right, used] = parse(tokens.slice(1))
-        console.log("right_used", used);
+        // todo: parse delimited if delimited results expected
+        const delims = DELIMITED_BINS[t.value.toUpperCase()];
+        const [__right, used] = delims == undefined ? parse(tokens.slice(1)) : delimited(tokens.slice(1), ...delims).tap(([branches, skip]) => [{type: "tree", branches}, skip]);
+        // console.log("right_used", used);
         const [right, new_acc] = doif_binary(__right, tokens.slice(1+used), bin_prec, 1+used+acc_used);
-        console.log('new_used', new_acc);
+        // console.log("right", right);
+        // console.log('new_used', new_acc);
         const binary = t.value == ":=" ? {type: "assign", left, right}
                     : {type: "binary", operator: t.value, left, right};
         return doif_binary(binary, tokens.slice(new_acc), prec, new_acc);
     }
-    console.log("left_acc_used", acc_used);
+    // console.log("left_acc_used", acc_used);
     return [left,acc_used];
+}
+
+const DELIMITED_BINS = {
+    "{": [",", "}", parse]
+};
+
+/**
+ * 
+ * @param {Token[]} tokens 
+ * @param {string} separator 
+ * @param {string} end 
+ * @param {(ts: Token[]) => [Branch, number]} parser 
+ * @returns {[Branch[], number]}
+ */
+function delimited(tokens, separator, end, parser) {
+    const peek = tokens[0] ?? {type: "NONE"};
+
+    if(peek.value == end) return [{type: "END"}, 1];
+    if(peek.value == separator) return [{type: "SKIP"}, 1];
+    
+    // console.log("About to parse toks: ", tokens.map(v=>v.value).join("|"))
+    const [parsed, used] = parser(tokens)
+        , [next, n_used] = delimited(tokens.slice(used), separator, end, parser);
+    // console.log("next", next);
+    
+    if(next.type == "SKIP") {
+        const [after, more_used] = delimited(tokens.slice(used+n_used), separator, end, parser);
+        return [[parsed].concat(after), used+n_used+more_used];
+    }else{
+        return [[parsed], used+n_used];
+    }
 }
 
 /**
@@ -218,38 +228,40 @@ function parse(tokens) {
         if(t.value == "(") {
             const [branch, used] = parse_expr(tokens.slice(1));
             return [branch, used+2];
-        }else if(t.value == "{") { // SELECTOR SYNTAX
-
         }
-
     }else if(t.type == "KW"){
         if(t.value == "UPDATE") {
-            const rv = p;
+            const relvar = p;
             const p2 = peek(2);
             const [clause, used] = p2.type == "KW" && p2.value == "WHERE"
                 ? parse_expr(tokens.slice(3)) : [{type: "NO_CLAUSE"}, -1]; // -1 handles the lack of 'WHERE'.
-            // console.log("clause", clause);
-            // console.log("used", used);
             const aft = 3+used;
-            // console.log("aft", aft);
-            // console.log("@aft", tokens[aft]);
             const _col = peek(aft); // assert ':'
             const _lbr = peek(aft+1); // assert '{'
-            const [set, s_used] = parse_expr(tokens.slice(aft+2)) // TODO delimited
+            const set_ind = aft+2;
+            const [set, s_used] = delimited(tokens.slice(set_ind), ",", "}", parse_expr)
             return [{
                 type: "update",
                 clause,
-                relvar: rv,
+                relvar,
                 set
-            }, aft+2+s_used];
+            }, set_ind+s_used];
         }
     }
+    console.error("Unexpected: ", t);
+    return [t, 1];
 }
 
 function parse_lang(str) {
     const tokens = parse_tokens(Array.from(str));
-    return parse(tokens);
+    const run_parse = (tokens, prog=[]) => {
+        const [branch, used] = parse_expr(tokens);
+        const new_tokens = tokens.slice(used);
+        if(new_tokens.length > 0) return run_parse(new_tokens, prog.concat(branch));
+        else return prog.concat(branch);
+    }
+    return run_parse(tokens);
 }
 
 
-module.exports = {parse_tokens, determine, t1, t1b, t2, parse, parse_expr, doif_binary}
+module.exports = {parse_tokens, determine, t1, t1b, t2, parse, parse_expr, doif_binary, delimited, parse_lang}
