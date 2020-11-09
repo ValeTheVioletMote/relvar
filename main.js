@@ -84,6 +84,9 @@ var SP = {
     ]
 }.tap(relvar)
 
+
+// For constraints, perhaps we should allow both D and JS funcs (name the func in an object passed to the DB)
+
 var s_pkey = {type: "primary", relvar:"S", attrs: ["S#"]};
 var p_pkey = {type: "primary", relvar:"P", attrs: ["P#"]};
 

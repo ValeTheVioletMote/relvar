@@ -341,6 +341,7 @@ function parse(input) {
                 return maybe_binary(binary, my_prec);
             }
         }
+        console.log("return left")
         return left;
     }
 
