@@ -1,5 +1,5 @@
 // Do D.js
-require("./main.js"); // lazy tap grab
+require("tap-chain").mixin(Object.prototype);
 var t1 = "UPDATE I WHERE Damage > 30: {Damage := Damage / 2}";
 var t1b = "UPDATE I : {Damage := Damage / 2}";
 var t2 = "(C join I join CI){ALL BUT C#, HP, I#}";
@@ -122,8 +122,8 @@ function parse_tokens(chars) {
             return [{type: "PUNC", value: chars[0]}].concat(parse_tokens(chars.slice(1)))
         case "STRING":{
             const next_pos = chars.findIndex((c, ind, arr) => ind != 0 && c == arr[0] && (arr[ind-1] ?? "") != "\\"),
-                  value = chars.slice(1,next_pos+1).tap(chars_tostr);
-            return [{type: "STRING", value}].concat(parse_tokens(chars.slice(next_pos+1)));}
+                  value = chars.slice(1,next_pos).tap(chars_tostr);
+            return [{type: "STRING", value}].concat(parse_tokens(chars.slice(next_pos)));}
         case "EOF":
             return [];
     }
@@ -165,7 +165,7 @@ function doif_binary(left, tokens, prec=0, acc_ind=0){
                     ? delimited(tokens.slice(2), ",", "}", parse_expr).tap(([b, used]) => [b, used+1]) 
                     : parse(tokens.slice(1))
                 : delimited(tokens.slice(1), ...delims)
-                    .tap(([branches, used]) => branches.length == 1 ? [branches[0], used] 
+                    .tap(([branches, used]) => branches.length == 1 && branches[0].type=="all_but" ? [branches[0], used] 
                                                 : [{type: "tree", branches}, used]);
         const [right, r_used] = doif_binary(parse_right, tokens.slice(use_op+psr_used), bin_prec)
         
@@ -268,6 +268,11 @@ function parse(tokens) {
     return [t, 1];
 }
 
+/**
+ * 
+ * @param {string} str
+ * @returns {Array<Branch>} 
+ */
 function parse_lang(str) {
     const tokens = parse_tokens(Array.from(str).concat([""])); // Needs an EOF or risks infinite
     const run_parse = (tokens, prog=[]) => {

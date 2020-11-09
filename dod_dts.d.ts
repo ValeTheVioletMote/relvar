@@ -6,7 +6,7 @@ export type Keyword = "JOIN"| "MINUS"| "UNION"| "ALL"|"BUT"| "TRUE"| "FALSE"
 export type BinaryOperator = 
     | "JOIN" | "MINUS" | "UNION" | "MATCHING" | "NOT MATCHING" 
     | "+" | "-" | "/" | "*"
-    | "AND" | "OR"
+    | "AND" | "OR" | "AS"
 
 export type UnaryOperator =
     | "ALL BUT" | "FROM TUPLE"
@@ -23,6 +23,7 @@ export type BPrimitive =
     Var | {value: number, type: "NUMBER"};
 
 export type Branch = 
+    | BPrimitive
     | {type: "assign", left: Var, right: Branch}
     | {type: "binary", operator: BinaryOperator, left: Var | Branch, right: Var | Branch}
     | {type: "update", relvar: Var, clause: Branch | {type: "NO_CLAUSE"}, set: Branch}
