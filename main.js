@@ -332,7 +332,7 @@ const logrv = (rv) => console.log(display_relvar(rv));
  * Perform basic where clause on relvar
  * @template T
  * @param {RelvarBasic<T>} rv 
- * @param {(a:T) => boolean} filter 
+ * @param {(a:Tuple<T>) => boolean} filter 
  * @returns {Relvar<T>}
  */
 function where(rv, filter) {
@@ -342,7 +342,7 @@ function where(rv, filter) {
 /**
  * Perform basic where clause on relvar
  * @template T
- * @param {(a:T) => boolean} filter 
+ * @param {(a:Tuple<T>) => boolean} filter 
  * @returns {(rv: RelvarBasic<T>) => Relvar<T>}
  */
 const _where = (filter) => (relvar) => where(relvar, filter);
