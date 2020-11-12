@@ -576,6 +576,16 @@ function assign_js_constraint(db, ...constraints) {
 }
 
 /**
+ * Returns a relvar by name, or null if nothing.
+ * @param {DB} db 
+ * @param {string} name 
+ * @returns {Relvar | null}
+ */
+function get_rv(db, name) {
+    return db.data.relvars[name] ?? null;
+}
+
+/**
  * Creates a new attribute (or overrides an existing one) off a single relvar.
  * @template T,U
  * @param {RelvarBasic<T>} rv 
@@ -696,7 +706,7 @@ function image_relation() {
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint};
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint, get_rv};
 
 /*
 
