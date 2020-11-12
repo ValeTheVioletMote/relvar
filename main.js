@@ -456,15 +456,16 @@ function cardinality(rv) {
 /**
  * 
  * @param {string} location 
- * @param {string} name (Optional)
+ * @param {{supplied?: DB['supplied'], name?: string }} options
  * @returns {DB} 
  */
-function db(location, name="") {
+function db(location, {supplied={constraints_js: {}}, name=""}) {
 
     // Check if DB exists at location. If not, build it (and save it?).
 
     try {
         var d = YMLR.sync(location);
+        d.supplied = supplied;
         return d;
     }catch(err){
         return {
@@ -476,6 +477,9 @@ function db(location, name="") {
             data: {
                 relvars: {}
             },
+            supplied: {
+                constraints_js: {}
+            }
         }
     }
 }
@@ -488,7 +492,10 @@ function save_db(db) {
     const new_hash = hash.MD5(db.data);
     try{
         if(new_hash != db.meta.last_hash) {
-            var ndb = {...db};
+            var ndb = {
+                meta: db.meta,
+                data: db.data
+            };
             ndb.meta.last_hash = new_hash;
             YMLW.sync(ndb.meta.location, ndb)
             return {c: "SAVED", db:ndb};
@@ -503,19 +510,69 @@ function save_db(db) {
  * Assign a relvar to a DB.
  * @param {DB} db 
  * @param {string} name 
- * @param {RelvarBasic<*>} rv 
- * @returns {DB}
+ * @param {[string, RelvarBasic<*>][]} rvs -- VarName and Relvar
+ * @returns {{c: "ASSIGNED", db: DB} | {c: "FAILED", db: DB, issue: {c: "CONSTRAINTS_FAILED", constraint_names: string[]}}}
  */
-function assign_rv(db, name, rv) {
-    // TODO: constraints are checked here.
-    const new_relvars = {...db.data.relvars};
-    new_relvars[name] = {attrs: rv.attrs, tuples: rv.tuples};
+function assign_rv(db, ...rvs) {
+    const new_relvars = {...db.data.relvars, ...Object.fromEntries(rvs.map(([k,v]) => [k,{attrs: v.attrs, tuples: v.tuples}]))};
+    // Check Constraints
+    const failed_constraints = (db?.supplied?.constraints_js ?? {})
+                                .tap(Object.entries).filter(([_k,v]) => v(new_relvars) == false)
+                                .map(([k,_v]) => k);
+
+    if(failed_constraints.length > 0) {
+        return {
+            c: "FAILED",
+            db,
+            issue: {c: "CONSTRAINTS_FAILED", constraint_names: failed_constraints}
+        };
+    }
+
     return {
-        meta: db.meta,
-        data: {
-            relvars: new_relvars
+        c: "ASSIGNED",
+        db: {
+            meta: db.meta,
+            data: {
+                relvars: new_relvars,
+                constraints_js: db.constraints_js ?? []
+            },
+            supplied: db.supplied
         }
     };
+}
+
+/**
+ * 
+ * @param {DB} db 
+ * @param {string} name 
+ * @param {[name, (rvs: DB['data']['relvars']) => boolean][]} constraints
+ * @returns {{c: "ASSIGNED", db: DB} | {c: "FAILED", db: DB, issue: {c: "CONSTRAINTS_FAILED", constraint_names: string[]}}}
+ */
+function assign_js_constraint(db, ...constraints) {
+    const new_constraints = {...(db?.supplied?.constraints_js ?? {}), ...Object.fromEntries(constraints)};
+    // Possible DRY violation - similar logic in assign_rv
+    const failed_constraints = Object.entries(new_constraints).filter(([_k, v]) => v(db.data.relvars) == false).map(([k,_v]) => k);
+    if (failed_constraints.length == 0) {
+        return {
+            c: "ASSIGNED",
+            db: {
+                meta: db.meta,
+                data: {...db.data, constraints_js: Object.keys(new_constraints)},
+                supplied: {
+                    constraints_js: new_constraints
+                }
+            }
+        }
+    } else {
+        return {
+            c: "FAILED",
+            db,
+            issue: {
+                c: "CONSTRAINTS_FAILED",
+                constraint_names: failed_constraints
+            }
+        }
+    }
 }
 
 /**
@@ -639,14 +696,14 @@ function image_relation() {
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt};
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint};
 
 /*
 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt} = require("./main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint} = require("./main.js");
 
 
 */

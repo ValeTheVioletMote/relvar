@@ -7,11 +7,11 @@ Documentation will be sparse as I'm focused more on the development, but here's 
 var {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext, count, _cnt, sum, _sum} = require("../main.js");
+    , db, save_db, assign_rv, update, _up, extend, _ext, count, _cnt, sum, _sum, assign_js_constraint} = require("../main.js");
 
-const _arv = (name, rv) => (db) => assign_rv(db, name, rv);
+const _arv = (...rvs) => (db) => assign_rv(db, ...rvs).db;
 
-var GameDB = db(require("path").join(__dirname, "test.yaml"), "GameDB");
+var GameDB = db(require("path").join(__dirname, "test.yaml"), {name: "GameDB"});
 var {db: GameDB} = save_db(GameDB);
 
 var C = relvar({
@@ -59,7 +59,9 @@ var CI = relvar({
     ]
 });
 
-var {db: GameDB} = GameDB.tap(_arv("C", C)).tap(_arv("I", I)).tap(_arv("CI", CI)).tap(save_db);
+var {db: GameDB} = GameDB.tap(_arv(["C", C], ["I", I], ["CI", CI])).tap(save_db);
+
+var {run} = require("../db_lang.js");
 
 console.log("C:")
 logrv(C);
@@ -98,7 +100,7 @@ where(I, i=>i.Damage > 30)
 .tap(_sel("Cname"))
 .tap(logrv);
 
-console.log("Characters and the items they *don't* have: ")
+console.log("Characters and the items they DON'T have: ")
 console.log("((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS Missing Item}")
 join(selection(C, "C#"), selection(I, "I#"))
 .tap(_minus( selection(CI, "C#", "I#") ))
@@ -118,12 +120,56 @@ extend(I, ["DPD", "number", i=>Math.round(i.Damage/i.Durability)])
 .tap(logrv);
 
 
-console.log("Count of all character-item combos:\n\tCOUNT ( CI ) = ", count(CI));
-console.log("Count of all distinct slots in character-item combos:\n\tCOUNT ( CI { Slot } ) = ", count(CI, "Slot"));
-console.log("Sum of all item damage.\n\tSUM (I, Damage) = ", sum(I, "Damage"));
-console.log("Sum of all distinct item damage values:\n\tSUM (I, { Damage }) = ", sum(I, ["Damage"]));
-console.log("Sum of tripled item damage.\n\tSUM (I, 3 * Damage) = ", sum(I, "Damage", i=>i.Damage*3) )
+console.log("Count of all character-item combos:\n\tCOUNT ( CI ) =", count(CI));
+console.log("Count of all distinct slots in character-item combos:\n\tCOUNT ( CI { Slot } ) :", count(CI, "Slot"));
+console.log("Sum of all item damage:\n\tSUM (I, Damage) =", sum(I, "Damage"));
+console.log("Sum of all distinct item damage values:\n\tSUM (I, { Damage }) =", sum(I, ["Damage"]));
+console.log("Sum of tripled item damage:\n\tSUM (I, 3 * Damage) = ", sum(I, "Damage", i=>i.Damage*3) )
 console.log("Sum of all distinct tripled item damage:\n\tSUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) = ", sum(extend(I, ["Damage", "number", i=>i.Damage*3]) , ["Damage"]))
+
+console.log("My D implementation is behind on most features, but the plumbing exists: ");
+console.log("(C join CI join I){ALL BUT C#, HP, I#}");
+run(GameDB, "(C join I join CI){ALL BUT C#, HP, I#}").tap(logrv);
+
+// With D, I hope to be able to allow constraints to be written in it
+// as a simple solution rather than needing the prefab or custom JS.
+
+
+// Add a uniqueness constraint to I.
+
+const uniq_i = (rvs) => count(rvs.I) == count(rvs.I, "I#");
+var {db: GameDB} = assign_js_constraint(GameDB, ["UNIQ_I", uniq_i]);
+
+console.log("Attempt to violate the constraint:");
+const new_i = union(I, {tuples: [{"I#": 7, "Iname": "Floppy Disk", "Durability": 40, "Damage": 3}] });
+const attempt_assign = assign_rv(GameDB, ["I", new_i]);
+console.dir(attempt_assign.c == "FAILED" ? attempt_assign.issue : "Oops. This shouldn't happen.");
+
+console.log("Concede, follow the constraint:");
+const new_i_2 = union(I, {tuples: [{"I#": 8, "Iname": "Floppy Disk", "Durability": 40, "Damage": 3}] });
+const this_should_work = assign_rv(GameDB, ["I", new_i_2]);
+logrv(this_should_work.db.data.relvars["I"]);
+
+// Initialize an existing DB with supplied constraints: 
+
+var my_constraints = {
+    "UNIQ_I": uniq_i
+};
+
+var newGame = db(require("path").join(__dirname, "test2.yaml")
+            , {name: "NewGame", supplied: {constraints_js: my_constraints}});
+
+    // I don't recommend you do this normally.
+    // This is just to ensure that the fresh file has the constraint and data.
+    // Your usual DB will already have the constraint in its data.
+    // if you've already built test2.yaml, you could comment these three lines out, and it'll still work.
+    newGame.data.relvars = GameDB.data.relvars;
+    newGame.data.constraints_js = ["UNIQ_I"];
+    save_db(newGame);
+
+console.log("Attempt to violate again on new DB:");
+const attempt_assign_2 = assign_rv(newGame, ["I", new_i]);
+console.dir(attempt_assign_2.c == "FAILED" ? attempt_assign_2.issue : "Oops. This shouldn't happen.");
 ```
 
 Output:
@@ -238,7 +284,7 @@ Just their names:
 ├──────────────────────┤
 │ Sir Nic of the Weils │
 └──────────────────────┘
-Characters and the items they *don't* have: 
+Characters and the items they DON'T have:
 ((C{C#} JOIN I{I#}) MINUS (CI{C#, I#}) JOIN C{C#, Cname} JOIN I{I#, Iname}) {Cname, Iname} RENAME {Cname AS Character, Iname AS Missing Item}
 ┌──────────────────────┬──────────────────────────────┐
 │ Character::string    │ Missing Item::string         │
@@ -261,7 +307,7 @@ Characters and the items they *don't* have:
 ├──────────────────────┼──────────────────────────────┤
 │ Sir Nic of the Weils │ Rot-Hilted Axe               │
 └──────────────────────┴──────────────────────────────┘
-Fix overpowered items: 
+Fix overpowered items:
 UPDATE I WHERE Damage > 30: {Damage := Damage / 2}
 ┌────────────┬──────────────────────────────┬────────────────────┬────────────────┐
 │ I#::number │ Iname::string                │ Durability::number │ Damage::number │
@@ -300,15 +346,54 @@ EXTEND I: {DPD := Damage / Durability}
 │ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │ 2           │
 └────────────┴──────────────────────────────┴────────────────────┴────────────────┴─────────────┘
 Count of all character-item combos:
-        COUNT ( CI ) =  5
+        COUNT ( CI ) = 5
 Count of all distinct slots in character-item combos:
-        COUNT ( CI { Slot } ) =  3
-Sum of all item damage.
-        SUM (I, Damage) =  1145
+        COUNT ( CI { Slot } ) : 3
+Sum of all item damage:
+        SUM (I, Damage) = 1145
 Sum of all distinct item damage values:
-        SUM (I, { Damage }) =  1130
-Sum of tripled item damage.
+        SUM (I, { Damage }) = 1130
+Sum of tripled item damage:
         SUM (I, 3 * Damage) =  3435
 Sum of all distinct tripled item damage:
         SUM( EXTEND I : { Damage := Damage * 3 }, {Damage}) =  3390
+My D implementation is behind on most features, but the plumbing exists:
+(C join CI join I){ALL BUT C#, HP, I#}
+┌──────────────────────┬────────────────────┬────────────────────┬────────────────┬──────────────┐
+│ Cname::string        │ Iname::string      │ Durability::number │ Damage::number │ Slot::number │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Reese of Wellington  │ Bronze Poniard     │ 10                 │ 10             │ 3            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Reese of Wellington  │ Venom-Soaked Blade │ 5                  │ 25             │ 4            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Bronze Poniard     │ 10                 │ 10             │ 10           │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Glazed Donut       │ 1                  │ 1              │ 4            │
+├──────────────────────┼────────────────────┼────────────────────┼────────────────┼──────────────┤
+│ Sir Nic of the Weils │ Ancient Spoon      │ 1                  │ 80             │ 3            │
+└──────────────────────┴────────────────────┴────────────────────┴────────────────┴──────────────┘
+Attempt to violate the constraint:
+{ c: 'CONSTRAINTS_FAILED', constraint_names: [ 'UNIQ_I' ] }
+Concede, follow the constraint:
+┌────────────┬──────────────────────────────┬────────────────────┬────────────────┐
+│ I#::number │ Iname::string                │ Durability::number │ Damage::number │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 1          │ Bronze Poniard               │ 10                 │ 10             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 2          │ Glazed Donut                 │ 1                  │ 1              │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 3          │ Venom-Soaked Blade           │ 5                  │ 25             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 4          │ Ancient Spoon                │ 1                  │ 80             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 5          │ Holy Hand Grenade of Antioch │ 1                  │ 999            │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 6          │ Common Shortsword            │ 30                 │ 15             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 7          │ Rot-Hilted Axe               │ 8                  │ 15             │
+├────────────┼──────────────────────────────┼────────────────────┼────────────────┤
+│ 8          │ Floppy Disk                  │ 40                 │ 3              │
+└────────────┴──────────────────────────────┴────────────────────┴────────────────┘
+Attempt to violate again on new DB:
+{ c: 'CONSTRAINTS_FAILED', constraint_names: [ 'UNIQ_I' ] }
 ```

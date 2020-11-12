@@ -19,8 +19,12 @@ export type DB = {
         last_hash: string
     },
     data: {
-        relvars: Record<string, RelvarBasic<*>>
+        relvars: Record<string, RelvarBasic<*>>,
+        constraints_js: Array<string> // List of function names to seek.
     },
+    supplied: {
+        constraints_js: Record<string, (rvs: DB['data']['relvars']) => boolean>
+    }
 }
 
 export type Constraint = 
