@@ -534,7 +534,7 @@ function assign_rv(db, ...rvs) {
             meta: db.meta,
             data: {
                 relvars: new_relvars,
-                constraints_js: db.constraints_js ?? []
+                constraints_js: db.data.constraints_js ?? []
             },
             supplied: db.supplied
         }
