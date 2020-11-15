@@ -514,6 +514,7 @@ function save_db(db) {
  * @returns {{c: "ASSIGNED", db: DB} | {c: "FAILED", db: DB, issue: {c: "CONSTRAINTS_FAILED", constraint_names: string[]}}}
  */
 function assign_rv(db, ...rvs) {
+    console.dir(rvs, {depth: null});
     const new_relvars = {...db.data.relvars, ...Object.fromEntries(rvs.map(([k,v]) => [k,{attrs: v.attrs, tuples: v.tuples}]))};
     // Check Constraints
     const failed_constraints = (db?.supplied?.constraints_js ?? {})
@@ -623,7 +624,7 @@ function compose(){
  * @template T
  * @param {RelvarBasic<T>} rv 
  * @param {(t: Tuple<T>) => false} where 
- * @param {Array<[string, (t: Tuple<T>) => any]>} setters
+ * @param {Array<[string, ((t: Tuple<T>) => any) | string]>} setters
  * @returns {Relvar<T>}
  */
 function update(rv, where, ...setters){
@@ -631,7 +632,7 @@ function update(rv, where, ...setters){
     return relvar({attrs: rv.attrs,
         tuples: rv.tuples.map(t =>where(t) 
         ? Object.entries(t)
-                .map(([k,v]) => [k, _setters[k] ? _setters[k](t) : v] )
+                .map(([k,v]) => [k, typeof _setters[k] == 'function' ? _setters[k](t) : typeof setters[k] != 'undefined' ? setters[k] : v] )
                 .tap(Object.fromEntries)
         : t)
     });
@@ -647,23 +648,25 @@ function update(rv, where, ...setters){
 const _up = (where, ...setters) => (rv) => update(rv,where,...setters);
 
 function __includes(rva, rvb, proper=false) {
+    // todo: could be optimized
+    return count(minus(rvb, rva)) == 0 && (proper == false || count(minus(rva, rvb)) > 0);
+}
+
+function includes(rva, rvb) {
+    return __includes(rva, rvb, false);
+}
+
+function proper_includes(rva, rvb) {
+    return __includes(rva, rvb, true);
 
 }
 
-function includes() {
-
+function included_in(rva, rvb){
+    return __includes(rvb, rva, false);
 }
 
-function proper_includes() {
-
-}
-
-function included_in(){
-
-}
-
-function is_proper_included_in() {
-    
+function proper_included_in(rva,rvb) {
+    return __includes(rvb, rva, true);
 }
 
 /**
@@ -709,7 +712,8 @@ function image_relation() {
 module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
-    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint, get_rv};
+    , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint
+    , get_rv, includes, proper_includes, included_in, proper_included_in};
 
 /*
 
