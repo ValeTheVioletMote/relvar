@@ -517,7 +517,8 @@ function assign_rv(db, ...rvs) {
     const new_relvars = {...db.data.relvars, ...Object.fromEntries(rvs.map(([k,v]) => [k,{attrs: v.attrs, tuples: v.tuples}]))};
     // Check Constraints
     const failed_constraints = (db?.supplied?.constraints_js ?? {})
-                                .tap(Object.entries).filter(([_k,v]) => v(new_relvars) == false)
+                                .tap(Object.entries)
+                                .filter(([k,v]) => db.data.constraints_js.includes(k) && v(new_relvars) == false)
                                 .map(([k,_v]) => k);
 
     if(failed_constraints.length > 0) {
@@ -544,20 +545,22 @@ function assign_rv(db, ...rvs) {
 /**
  * 
  * @param {DB} db 
- * @param {string} name 
- * @param {[name, (rvs: DB['data']['relvars']) => boolean][]} constraints
+ * @param {[string, (rvs: DB['data']['relvars']) => boolean][]} constraints
  * @returns {{c: "ASSIGNED", db: DB} | {c: "FAILED", db: DB, issue: {c: "CONSTRAINTS_FAILED", constraint_names: string[]}}}
  */
 function assign_js_constraint(db, ...constraints) {
     const new_constraints = {...(db?.supplied?.constraints_js ?? {}), ...Object.fromEntries(constraints)};
     // Possible DRY violation - similar logic in assign_rv
-    const failed_constraints = Object.entries(new_constraints).filter(([_k, v]) => v(db.data.relvars) == false).map(([k,_v]) => k);
+    
+    const new_constraint_names = (db.data.constraints_js ?? []).concat(constraints.map(([k,_v]) => k));
+    const failed_constraints = Object.entries(new_constraints)
+        .filter(([k, v]) => new_constraint_names.includes(k) && v(db.data.relvars) == false).map(([k,_v]) => k);
     if (failed_constraints.length == 0) {
         return {
             c: "ASSIGNED",
             db: {
                 meta: db.meta,
-                data: {...db.data, constraints_js: Object.keys(new_constraints)},
+                data: {...db.data, constraints_js: new_constraint_names},
                 supplied: {
                     constraints_js: new_constraints
                 }
