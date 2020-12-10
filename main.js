@@ -598,13 +598,46 @@ function assign_js_constraint(db, ...constraints) {
 }
 
 /**
+ * @template T
+ * @returns {RelvarBasic<T>}
+ */
+function rv_true() {
+    return {attrs: {}, tuples:[{}]}
+}
+
+/**
+ * @template T
+ * @returns {RelvarBasic<T>}
+ */
+function rv_false() {
+    return {attrs: {}, tuples:[]}
+}
+
+/**
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ */
+function is_rv_true(rv) {
+    return Object.keys(rv.attrs).length == 0 && rv.tuples.length == 1;
+}
+
+/**
+ * @template T
+ * @param {RelvarBasic<T>} rv 
+ */
+function is_rv_false(rv) {
+    return Object.keys(rv.attrs).length == 0 && rv.tuples.length == 0;
+}
+
+/**
  * Returns a relvar by name, or null if nothing.
+ * @template T
  * @param {DB} db 
  * @param {string} name 
- * @returns {Relvar | null}
+ * @returns {Relvar<T>}
  */
 function get_rv(db, name) {
-    return db.data.relvars[name] ?? null;
+    return db.data.relvars[name] ?? rv_true();
 }
 
 /**
@@ -731,7 +764,7 @@ module.exports = {relvar, union, _sel, _un, selection
     , rvts, logrv, S, P, SP, _j, join, inv_selection, _but
     , where, _where, minus, _minus, rename, _ren, matching, _mat, not_matching, _nmat
     , db, save_db, assign_rv, update, _up, extend, _ext, sum, _sum, count, _cnt, assign_js_constraint
-    , get_rv, includes, proper_includes, included_in, proper_included_in};
+    , get_rv, includes, proper_includes, included_in, proper_included_in, rv_true, rv_false, is_rv_true, is_rv_false};
 
 /*
 
